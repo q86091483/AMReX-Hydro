@@ -267,7 +267,7 @@ void SetZEdgeBCs ( const int i, const int j, const int k, const int n,
     else if ( k < domlo || k > domhi+1 )
     {
         // This should never actually get used. Set to bogus large value so we know if
-        // it's every used.
+        // it's ever used.
         lo = covered_val;
         hi = lo;    
     }
