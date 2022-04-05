@@ -44,8 +44,7 @@ namespace HydroBC{
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void SetXEdgeBCs( const int i, const int j, const int k, const int n,
                   const amrex::Array4<const amrex::Real> &s,
-                  const amrex::Array4<amrex::Real> &lo,
-                  const amrex::Array4< amrex::Real> &hi,
+                  amrex::Real &lo, amrex::Real &hi,
                   const int bclo, const int domlo,
                   const int bchi, const int domhi,
                   const bool is_velocity )
