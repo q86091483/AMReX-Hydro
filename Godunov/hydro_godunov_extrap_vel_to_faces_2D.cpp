@@ -18,7 +18,7 @@ Godunov::ExtrapVelToFaces ( MultiFab const& a_vel,
                             MultiFab& a_umac,
                             MultiFab& a_vmac,
                             const Vector<BCRec> & h_bcrec,
-                const        BCRec  * d_bcrec,
+                            const        BCRec  * d_bcrec,
                             const Geometry& geom, Real l_dt,
                             bool use_ppm, bool use_forces_in_trans)
 {
@@ -72,7 +72,7 @@ Godunov::ExtrapVelToFaces ( MultiFab const& a_vel,
             else
             {
                 PLM::PredictVelOnXFace( Box(u_ad), AMREX_SPACEDIM, Imx, Ipx, vel, vel,
-                                         geom, l_dt, h_bcrec, d_bcrec);
+					geom, l_dt, h_bcrec, d_bcrec);
                 PLM::PredictVelOnYFace( Box(v_ad), AMREX_SPACEDIM, Imy, Ipy, vel, vel,
                                         geom, l_dt, h_bcrec, d_bcrec);
             }
@@ -113,49 +113,49 @@ Godunov::ComputeAdvectiveVel ( Box const& xbx,
     const Dim3 dhi = amrex::ubound(domain);
 
     amrex::ParallelFor(xbx, ybx,
-    [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-    {
-        // We only care about x-velocity on x-faces here
-        constexpr int n = 0;
+		       [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+		       {
+			   // We only care about x-velocity on x-faces here
+			   constexpr int n = 0;
 
-        Real lo = Ipx(i-1,j,k,n);
-        Real hi = Imx(i  ,j,k,n);
+			   Real lo = Ipx(i-1,j,k,n);
+			   Real hi = Imx(i  ,j,k,n);
 
-        if (l_use_forces_in_trans)
-        {
-            lo += 0.5*l_dt*f(i-1,j,k,n);
-            hi += 0.5*l_dt*f(i  ,j,k,n);
-        }
+			   if (l_use_forces_in_trans)
+			   {
+			       lo += 0.5*l_dt*f(i-1,j,k,n);
+			       hi += 0.5*l_dt*f(i  ,j,k,n);
+			   }
 
-        auto bc = pbc[n];
-        HydroBC::SetXEdgeBCs(i, j, k, n, vel, lo, hi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
+			   auto bc = pbc[n];
+			   HydroBC::SetXEdgeBCs(i, j, k, n, vel, lo, hi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
 
-        Real st = ( (lo+hi) >= 0.) ? lo : hi;
-        bool ltm = ( (lo <= 0. && hi >= 0.) || (amrex::Math::abs(lo+hi) < small_vel) );
-        u_ad(i,j,k) = ltm ? 0. : st;
-    },
-    [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-    {
-        // We only care about y-velocity on y-faces here
-        constexpr int n = 1;
+			   Real st = ( (lo+hi) >= 0.) ? lo : hi;
+			   bool ltm = ( (lo <= 0. && hi >= 0.) || (amrex::Math::abs(lo+hi) < small_vel) );
+			   u_ad(i,j,k) = ltm ? 0. : st;
+		       },
+		       [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+		       {
+			   // We only care about y-velocity on y-faces here
+			   constexpr int n = 1;
 
-        Real lo = Ipy(i,j-1,k,n);
-        Real hi = Imy(i,j  ,k,n);
+			   Real lo = Ipy(i,j-1,k,n);
+			   Real hi = Imy(i,j  ,k,n);
 
-        if (l_use_forces_in_trans)
-        {
-            lo += 0.5*l_dt*f(i,j-1,k,n);
-            hi += 0.5*l_dt*f(i,j  ,k,n);
-        }
+			   if (l_use_forces_in_trans)
+			   {
+			       lo += 0.5*l_dt*f(i,j-1,k,n);
+			       hi += 0.5*l_dt*f(i,j  ,k,n);
+			   }
 
-        auto bc = pbc[n];
-        HydroBC::SetYEdgeBCs(i, j, k, n, vel, lo, hi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
+			   auto bc = pbc[n];
+			   HydroBC::SetYEdgeBCs(i, j, k, n, vel, lo, hi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
 
-        Real st = ( (lo+hi) >= 0.) ? lo : hi;
-        bool ltm = ( (lo <= 0. && hi >= 0.) || (amrex::Math::abs(lo+hi) < small_vel) );
-        v_ad(i,j,k) = ltm ? 0. : st;
-    }
-    );
+			   Real st = ( (lo+hi) >= 0.) ? lo : hi;
+			   bool ltm = ( (lo <= 0. && hi >= 0.) || (amrex::Math::abs(lo+hi) < small_vel) );
+			   v_ad(i,j,k) = ltm ? 0. : st;
+		       }
+	);
 }
 
 void
@@ -199,58 +199,58 @@ Godunov::ExtrapVelToFacesOnBox (Box const& bx, int ncomp,
     p += yhi.size();
 
     amrex::ParallelFor(
-    xebox, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
-    {
-        Real lo = Ipx(i-1,j,k,n);
-        Real hi = Imx(i  ,j,k,n);
+	xebox, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
+		      {
+			  Real lo = Ipx(i-1,j,k,n);
+			  Real hi = Imx(i  ,j,k,n);
 
-        if (l_use_forces_in_trans)
-        {
-            lo += 0.5*l_dt*f(i-1,j,k,n);
-            hi += 0.5*l_dt*f(i  ,j,k,n);
-        }
+			  if (l_use_forces_in_trans)
+			  {
+			      lo += 0.5*l_dt*f(i-1,j,k,n);
+			      hi += 0.5*l_dt*f(i  ,j,k,n);
+			  }
 
-        Real uad = u_ad(i,j,k);
-        auto bc = pbc[n];
+			  Real uad = u_ad(i,j,k);
+			  auto bc = pbc[n];
 
-        HydroBC::SetXEdgeBCs(i, j, k, n, q, lo, hi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
+			  HydroBC::SetXEdgeBCs(i, j, k, n, q, lo, hi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
 
-        xlo(i,j,k,n) = lo;
-        xhi(i,j,k,n) = hi;
+			  xlo(i,j,k,n) = lo;
+			  xhi(i,j,k,n) = hi;
 
-        Real st = (uad >= 0.) ? lo : hi;
-        Real fu = (amrex::Math::abs(uad) < small_vel) ? 0.0 : 1.0;
-        Imx(i, j, k, n) = fu*st + (1.0 - fu) *0.5 * (hi + lo); // store xedge
-    },
-    yebox, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
-    {
-        Real lo = Ipy(i,j-1,k,n);
-        Real hi = Imy(i,j  ,k,n);
+			  Real st = (uad >= 0.) ? lo : hi;
+			  Real fu = (amrex::Math::abs(uad) < small_vel) ? 0.0 : 1.0;
+			  Imx(i, j, k, n) = fu*st + (1.0 - fu) *0.5 * (hi + lo); // store xedge
+		      },
+	yebox, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
+		      {
+			  Real lo = Ipy(i,j-1,k,n);
+			  Real hi = Imy(i,j  ,k,n);
 
-        if (l_use_forces_in_trans)
-        {
-            lo += 0.5*l_dt*f(i,j-1,k,n);
-            hi += 0.5*l_dt*f(i,j  ,k,n);
-        }
+			  if (l_use_forces_in_trans)
+			  {
+			      lo += 0.5*l_dt*f(i,j-1,k,n);
+			      hi += 0.5*l_dt*f(i,j  ,k,n);
+			  }
 
-        Real vad = v_ad(i,j,k);
-        auto bc = pbc[n];
+			  Real vad = v_ad(i,j,k);
+			  auto bc = pbc[n];
 
-        HydroBC::SetYEdgeBCs(i, j, k, n, q, lo, hi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
+			  HydroBC::SetYEdgeBCs(i, j, k, n, q, lo, hi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
 
-        ylo(i,j,k,n) = lo;
-        yhi(i,j,k,n) = hi;
+			  ylo(i,j,k,n) = lo;
+			  yhi(i,j,k,n) = hi;
 
-        Real st = (vad >= 0.) ? lo : hi;
-        Real fu = (amrex::Math::abs(vad) < small_vel) ? 0.0 : 1.0;
-        Imy(i, j, k, n) = fu*st + (1.0 - fu)*0.5*(hi + lo); // store yedge
-    }
-    );
+			  Real st = (vad >= 0.) ? lo : hi;
+			  Real fu = (amrex::Math::abs(vad) < small_vel) ? 0.0 : 1.0;
+			  Imy(i, j, k, n) = fu*st + (1.0 - fu)*0.5*(hi + lo); // store yedge
+		      }
+	);
 
     Array4<Real> divu = makeArray4(Ipx.dataPtr(), grow(bx,1), 1);
     amrex::ParallelFor(Box(divu), [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
-        divu(i,j,k) = 0.0;
-    });
+				      divu(i,j,k) = 0.0;
+				  });
 
     //
     // X-Flux
@@ -259,55 +259,55 @@ Godunov::ExtrapVelToFacesOnBox (Box const& bx, int ncomp,
     Array4<Real> yzlo = makeArray4(Ipy.dataPtr(), amrex::surroundingNodes(xbxtmp,1), 1);
 
     amrex::ParallelFor(Box(yzlo),
-    [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-    {
-        constexpr int n = 0;
-        const auto bc = pbc[n];
-        Real l_yzlo, l_yzhi;
+		       [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+		       {
+			   constexpr int n = 0;
+			   const auto bc = pbc[n];
+			   Real l_yzlo, l_yzhi;
 
-        l_yzlo = ylo(i,j,k,n);
-        l_yzhi = yhi(i,j,k,n);
+			   l_yzlo = ylo(i,j,k,n);
+			   l_yzhi = yhi(i,j,k,n);
 
-        Real vad = v_ad(i,j,k);
-        HydroBC::SetYEdgeBCs(i, j, k, n, q, l_yzlo, l_yzhi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
+			   Real vad = v_ad(i,j,k);
+			   HydroBC::SetYEdgeBCs(i, j, k, n, q, l_yzlo, l_yzhi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
 
-        Real st = (vad >= 0.) ? l_yzlo : l_yzhi;
-        Real fu = (amrex::Math::abs(vad) < small_vel) ? 0.0 : 1.0;
-        yzlo(i,j,k) = fu*st + (1.0 - fu) * 0.5 * (l_yzhi + l_yzlo);
-    });
+			   Real st = (vad >= 0.) ? l_yzlo : l_yzhi;
+			   Real fu = (amrex::Math::abs(vad) < small_vel) ? 0.0 : 1.0;
+			   yzlo(i,j,k) = fu*st + (1.0 - fu) * 0.5 * (l_yzhi + l_yzlo);
+		       });
 
     amrex::ParallelFor(xbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-    {
-        constexpr int n = 0;
-        auto bc = pbc[n];
-        Real stl = xlo(i,j,k,n) - (0.25*l_dt/dy)*(v_ad(i-1,j+1,k  )+v_ad(i-1,j,k))*
-                                                 (yzlo(i-1,j+1,k  )-yzlo(i-1,j,k));
-        Real sth = xhi(i,j,k,n) - (0.25*l_dt/dy)*(v_ad(i  ,j+1,k  )+v_ad(i  ,j,k))*
-                                                 (yzlo(i  ,j+1,k  )-yzlo(i  ,j,k));
+			    {
+				constexpr int n = 0;
+				auto bc = pbc[n];
+				Real stl = xlo(i,j,k,n) - (0.25*l_dt/dy)*(v_ad(i-1,j+1,k  )+v_ad(i-1,j,k))*
+				    (yzlo(i-1,j+1,k  )-yzlo(i-1,j,k));
+				Real sth = xhi(i,j,k,n) - (0.25*l_dt/dy)*(v_ad(i  ,j+1,k  )+v_ad(i  ,j,k))*
+				    (yzlo(i  ,j+1,k  )-yzlo(i  ,j,k));
 
-        if (!l_use_forces_in_trans)
-        {
-            stl += 0.5 * l_dt * f(i-1,j,k,n);
-            sth += 0.5 * l_dt * f(i  ,j,k,n);
-        }
+				if (!l_use_forces_in_trans)
+				{
+				    stl += 0.5 * l_dt * f(i-1,j,k,n);
+				    sth += 0.5 * l_dt * f(i  ,j,k,n);
+				}
 
-        HydroBC::SetXEdgeBCs(i, j, k, n, q, stl, sth, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
+				HydroBC::SetXEdgeBCs(i, j, k, n, q, stl, sth, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
 
-        if ( (i==dlo.x) && (bc.lo(0) == BCType::foextrap || bc.lo(0) == BCType::hoextrap) )
-        {
-            sth = amrex::min(sth,0.0_rt);
-            stl = sth;
-        }
-        if ( (i==dhi.x+1) && (bc.hi(0) == BCType::foextrap || bc.hi(0) == BCType::hoextrap) )
-        {
-             stl = amrex::max(stl,0.0_rt);
-             sth = stl;
-        }
+				if ( (i==dlo.x) && (bc.lo(0) == BCType::foextrap || bc.lo(0) == BCType::hoextrap) )
+				{
+				    sth = amrex::min(sth,0.0_rt);
+				    stl = sth;
+				}
+				if ( (i==dhi.x+1) && (bc.hi(0) == BCType::foextrap || bc.hi(0) == BCType::hoextrap) )
+				{
+				    stl = amrex::max(stl,0.0_rt);
+				    sth = stl;
+				}
 
-        Real st = ( (stl+sth) >= 0.) ? stl : sth;
-        bool ltm = ( (stl <= 0. && sth >= 0.) || (amrex::Math::abs(stl+sth) < small_vel) );
-        qx(i,j,k) = ltm ? 0. : st;
-    });
+				Real st = ( (stl+sth) >= 0.) ? stl : sth;
+				bool ltm = ( (stl <= 0. && sth >= 0.) || (amrex::Math::abs(stl+sth) < small_vel) );
+				qx(i,j,k) = ltm ? 0. : st;
+			    });
 
     //
     // Y-Flux
@@ -315,57 +315,57 @@ Godunov::ExtrapVelToFacesOnBox (Box const& bx, int ncomp,
     Box const ybxtmp  = Box(ybx).enclosedCells().grow(1,1);
     Array4<Real> xzlo = makeArray4(Ipy.dataPtr(), amrex::surroundingNodes(ybxtmp,0), 1);
     amrex::ParallelFor(Box(xzlo),
-    [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-    {
-        constexpr int n = 1;
-        const auto bc = pbc[n];
-        Real l_xzlo, l_xzhi;
+		       [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+		       {
+			   constexpr int n = 1;
+			   const auto bc = pbc[n];
+			   Real l_xzlo, l_xzhi;
 
-        l_xzlo = xlo(i,j,k,n);
-        l_xzhi = xhi(i,j,k,n);
+			   l_xzlo = xlo(i,j,k,n);
+			   l_xzhi = xhi(i,j,k,n);
 
-        Real uad = u_ad(i,j,k);
-        HydroBC::SetXEdgeBCs(i, j, k, n, q, l_xzlo, l_xzhi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
+			   Real uad = u_ad(i,j,k);
+			   HydroBC::SetXEdgeBCs(i, j, k, n, q, l_xzlo, l_xzhi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
 
 
-        Real st = (uad >= 0.) ? l_xzlo : l_xzhi;
-        Real fu = (amrex::Math::abs(uad) < small_vel) ? 0.0 : 1.0;
-        xzlo(i,j,k) = fu*st + (1.0 - fu) * 0.5 * (l_xzhi + l_xzlo);
-    });
+			   Real st = (uad >= 0.) ? l_xzlo : l_xzhi;
+			   Real fu = (amrex::Math::abs(uad) < small_vel) ? 0.0 : 1.0;
+			   xzlo(i,j,k) = fu*st + (1.0 - fu) * 0.5 * (l_xzhi + l_xzlo);
+		       });
 
 
     amrex::ParallelFor(ybx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-    {
-        constexpr int n = 1;
-        auto bc = pbc[n];
+			    {
+				constexpr int n = 1;
+				auto bc = pbc[n];
 
-        Real stl = ylo(i,j,k,n) - (0.25*l_dt/dx)*(u_ad(i+1,j-1,k  )+u_ad(i,j-1,k))*
-                                                 (xzlo(i+1,j-1,k  )-xzlo(i,j-1,k));
-        Real sth = yhi(i,j,k,n) - (0.25*l_dt/dx)*(u_ad(i+1,j  ,k  )+u_ad(i,j  ,k))*
-                                                 (xzlo(i+1,j  ,k  )-xzlo(i,j  ,k));
+				Real stl = ylo(i,j,k,n) - (0.25*l_dt/dx)*(u_ad(i+1,j-1,k  )+u_ad(i,j-1,k))*
+				    (xzlo(i+1,j-1,k  )-xzlo(i,j-1,k));
+				Real sth = yhi(i,j,k,n) - (0.25*l_dt/dx)*(u_ad(i+1,j  ,k  )+u_ad(i,j  ,k))*
+				    (xzlo(i+1,j  ,k  )-xzlo(i,j  ,k));
 
-        if (!l_use_forces_in_trans)
-        {
-           stl += 0.5 * l_dt * f(i,j-1,k,n);
-           sth += 0.5 * l_dt * f(i,j  ,k,n);
-        }
+				if (!l_use_forces_in_trans)
+				{
+				    stl += 0.5 * l_dt * f(i,j-1,k,n);
+				    sth += 0.5 * l_dt * f(i,j  ,k,n);
+				}
 
-        HydroBC::SetYEdgeBCs(i, j, k, n, q, stl, sth, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
+				HydroBC::SetYEdgeBCs(i, j, k, n, q, stl, sth, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
 
-        if ( (j==dlo.y) && (bc.lo(1) == BCType::foextrap || bc.lo(1) == BCType::hoextrap) )
-        {
-            sth = amrex::min(sth,0.0_rt);
-            stl = sth;
-        }
-        if ( (j==dhi.y+1) && (bc.hi(1) == BCType::foextrap || bc.hi(1) == BCType::hoextrap) )
-        {
-            stl = amrex::max(stl,0.0_rt);
-            sth = stl;
-        }
+				if ( (j==dlo.y) && (bc.lo(1) == BCType::foextrap || bc.lo(1) == BCType::hoextrap) )
+				{
+				    sth = amrex::min(sth,0.0_rt);
+				    stl = sth;
+				}
+				if ( (j==dhi.y+1) && (bc.hi(1) == BCType::foextrap || bc.hi(1) == BCType::hoextrap) )
+				{
+				    stl = amrex::max(stl,0.0_rt);
+				    sth = stl;
+				}
 
-        Real st = ( (stl+sth) >= 0.) ? stl : sth;
-        bool ltm = ( (stl <= 0. && sth >= 0.) || (amrex::Math::abs(stl+sth) < small_vel) );
-        qy(i,j,k) = ltm ? 0. : st;
-    });
+				Real st = ( (stl+sth) >= 0.) ? stl : sth;
+				bool ltm = ( (stl <= 0. && sth >= 0.) || (amrex::Math::abs(stl+sth) < small_vel) );
+				qy(i,j,k) = ltm ? 0. : st;
+			    });
 }
 /** @} */

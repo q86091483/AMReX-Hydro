@@ -327,7 +327,7 @@ EBGodunov::ComputeEdgeState ( Box const& bx, int ncomp,
                   Math::abs(values_on_eb_inflow(i,j  ,k,n)) > 0.) ? 0 : 1);
 
             // If we can't compute good transverse terms, don't use any d/dt terms at all
-             if (apx(i,j,k) > 0. && apx(i+1,j,k) > 0. && no_eb_flow_yhi)
+            if (apx(i,j,k) > 0. && apx(i+1,j,k) > 0. && no_eb_flow_yhi)
             {
                 // Here we add  dt/2 (-q v_y - (u q)_x) to the term that is already
                 //     q + dy/2 q_y + dt/2 (-v q_y) to get

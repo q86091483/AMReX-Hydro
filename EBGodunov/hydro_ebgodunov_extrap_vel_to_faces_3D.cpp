@@ -187,87 +187,87 @@ EBGodunov::ExtrapVelToFacesOnBox ( Box const& bx, int ncomp,
     {
         if (flag(i,j,k).isConnected(-1,0,0))
         {
-        constexpr int n = 0;
-        auto bc = pbc[n];
+            constexpr int n = 0;
+            auto bc = pbc[n];
 
-        // stl is on the lo side of the lo-x side of cell (i,j,k)
-        // sth is on the hi side of the lo-x side of cell (i,j,k)
-        Real stl = xlo(i,j,k,n);
-        Real sth = xhi(i,j,k,n);
+            // stl is on the lo side of the lo-x side of cell (i,j,k)
+            // sth is on the hi side of the lo-x side of cell (i,j,k)
+            Real stl = xlo(i,j,k,n);
+            Real sth = xhi(i,j,k,n);
 
-        Real trans_y, trans_z;
+            Real trans_y, trans_z;
 
-        //
-        // Left side of interface
-        //
-        {
-        int ic = i-1;
-        if (flag(ic,j,k).isRegular())
-        {
-            stl += - (0.25*l_dt/dy)*(v_ad(ic,j+1,k  )+v_ad(ic,j,k))*
-                                    (yzlo(ic,j+1,k  )-yzlo(ic,j,k))
-                   - (0.25*l_dt/dz)*(w_ad(ic,j  ,k+1)+w_ad(ic,j,k))*
-                                    (zylo(ic,j  ,k+1)-zylo(ic,j,k))
-                   + 0.5 * l_dt * f(ic,j,k,n);
+            //
+            // Left side of interface
+            //
+            {
+                int ic = i-1;
+                if (flag(ic,j,k).isRegular())
+                {
+                    stl += - (0.25*l_dt/dy)*(v_ad(ic,j+1,k  )+v_ad(ic,j,k))*
+                                            (yzlo(ic,j+1,k  )-yzlo(ic,j,k))
+                           - (0.25*l_dt/dz)*(w_ad(ic,j  ,k+1)+w_ad(ic,j,k))*
+                                            (zylo(ic,j  ,k+1)-zylo(ic,j,k))
+                           + 0.5 * l_dt * f(ic,j,k,n);
 
-        // Only add dt-based terms if we can construct all transverse terms
-        //    using non-covered faces
-        } else if (apy(ic,j+1,k) > 0. && apy(ic,j,k) > 0. &&
-                   apz(ic,j,k+1) > 0. && apz(ic,j,k) > 0.)
-        {
-            create_transverse_terms_for_xface(ic, j, k, v_ad, w_ad, yzlo, zylo,
-                                              apy, apz, fcy, fcz, trans_y, trans_z,
-                                              dy, dz);
+                    // Only add dt-based terms if we can construct all transverse terms
+                    //    using non-covered faces
+                } else if (apy(ic,j+1,k) > 0. && apy(ic,j,k) > 0. &&
+                           apz(ic,j,k+1) > 0. && apz(ic,j,k) > 0.)
+                {
+                    create_transverse_terms_for_xface(ic, j, k, v_ad, w_ad, yzlo, zylo,
+                                                      apy, apz, fcy, fcz, trans_y, trans_z,
+                                                      dy, dz);
 
-            stl += -0.5 * l_dt * (trans_y + trans_z);
-            stl +=  0.5 * l_dt * f(ic,j,k,n);
-        }
-        }
+                    stl += -0.5 * l_dt * (trans_y + trans_z);
+                    stl +=  0.5 * l_dt * f(ic,j,k,n);
+                }
+            }
 
-        //
-        // Right side of interface
-        //
-        {
-        int ic = i;
-        if (flag(ic,j,k).isRegular())
-        {
-             sth += - (0.25*l_dt/dy)*(v_ad(ic,j+1,k  )+v_ad(ic,j,k))*
-                                     (yzlo(ic,j+1,k  )-yzlo(ic,j,k))
-                    - (0.25*l_dt/dz)*(w_ad(ic,j  ,k+1)+w_ad(ic,j,k))*
-                                     (zylo(ic,j  ,k+1)-zylo(ic,j,k))
-                 + 0.5 * l_dt * f(ic,j,k,n);
+            //
+            // Right side of interface
+            //
+            {
+                int ic = i;
+                if (flag(ic,j,k).isRegular())
+                {
+                    sth += - (0.25*l_dt/dy)*(v_ad(ic,j+1,k  )+v_ad(ic,j,k))*
+                                            (yzlo(ic,j+1,k  )-yzlo(ic,j,k))
+                           - (0.25*l_dt/dz)*(w_ad(ic,j  ,k+1)+w_ad(ic,j,k))*
+                                            (zylo(ic,j  ,k+1)-zylo(ic,j,k))
+                           + 0.5 * l_dt * f(ic,j,k,n);
 
-        // Only add dt-based terms if we can construct all transverse terms
-        //    using non-covered faces
-        } else if (apy(ic,j+1,k) > 0. && apy(ic,j,k) > 0. &&
-                   apz(ic,j,k+1) > 0. && apz(ic,j,k) > 0.)
-        {
-            create_transverse_terms_for_xface(ic, j, k, v_ad, w_ad, yzlo, zylo,
-                                              apy, apz, fcy, fcz, trans_y, trans_z,
-                                              dy, dz);
+                    // Only add dt-based terms if we can construct all transverse terms
+                    //    using non-covered faces
+                } else if (apy(ic,j+1,k) > 0. && apy(ic,j,k) > 0. &&
+                           apz(ic,j,k+1) > 0. && apz(ic,j,k) > 0.)
+                {
+                    create_transverse_terms_for_xface(ic, j, k, v_ad, w_ad, yzlo, zylo,
+                                                      apy, apz, fcy, fcz, trans_y, trans_z,
+                                                      dy, dz);
 
-            sth += -0.5 * l_dt * (trans_y + trans_z);
-            sth +=  0.5 * l_dt * f(ic,j,k,n);
-        }
-        }
+                    sth += -0.5 * l_dt * (trans_y + trans_z);
+                    sth +=  0.5 * l_dt * f(ic,j,k,n);
+                }
+            }
 
-        HydroBC::SetXEdgeBCs(i, j, k, n, q, stl, sth, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
+            HydroBC::SetXEdgeBCs(i, j, k, n, q, stl, sth, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
 
-        // Prevent backflow
-        if ( (i==dlo.x) && (bc.lo(0) == BCType::foextrap || bc.lo(0) == BCType::hoextrap) )
-        {
-            sth = amrex::min(sth,0.0_rt);
-            stl = sth;
-        }
-        if ( (i==dhi.x+1) && (bc.hi(0) == BCType::foextrap || bc.hi(0) == BCType::hoextrap) )
-        {
-             stl = amrex::max(stl,0.0_rt);
-             sth = stl;
-        }
+            // Prevent backflow
+            if ( (i==dlo.x) && (bc.lo(0) == BCType::foextrap || bc.lo(0) == BCType::hoextrap) )
+            {
+                sth = amrex::min(sth,0.0_rt);
+                stl = sth;
+            }
+            if ( (i==dhi.x+1) && (bc.hi(0) == BCType::foextrap || bc.hi(0) == BCType::hoextrap) )
+            {
+                stl = amrex::max(stl,0.0_rt);
+                sth = stl;
+            }
 
-        Real st = ( (stl+sth) >= 0.) ? stl : sth;
-        bool ltm = ( (stl <= 0. && sth >= 0.) || (amrex::Math::abs(stl+sth) < small_vel) );
-        qx(i,j,k) = ltm ? 0. : st;
+            Real st = ( (stl+sth) >= 0.) ? stl : sth;
+            bool ltm = ( (stl <= 0. && sth >= 0.) || (amrex::Math::abs(stl+sth) < small_vel) );
+            qx(i,j,k) = ltm ? 0. : st;
 
         } else {
             qx(i,j,k) = 0.;
@@ -331,87 +331,87 @@ EBGodunov::ExtrapVelToFacesOnBox ( Box const& bx, int ncomp,
     {
         if (flag(i,j,k).isConnected(0,-1,0))
         {
-        constexpr int n = 1;
-        auto bc = pbc[n];
+            constexpr int n = 1;
+            auto bc = pbc[n];
 
-        // stl is on the lo side of the lo-y side of cell (i,j,k)
-        // sth is on the hi side of the lo-y side of cell (i,j,k)
-        Real stl = ylo(i,j,k,n);
-        Real sth = yhi(i,j,k,n);
+            // stl is on the lo side of the lo-y side of cell (i,j,k)
+            // sth is on the hi side of the lo-y side of cell (i,j,k)
+            Real stl = ylo(i,j,k,n);
+            Real sth = yhi(i,j,k,n);
 
-        Real trans_x, trans_z;
+            Real trans_x, trans_z;
 
-        //
-        // Left side of interface
-        //
-        {
-        int jc = j-1;
-        if (flag(i,jc,k).isRegular())
-        {
-            stl += - (0.25*l_dt/dx)*(u_ad(i+1,jc,k  )+u_ad(i,jc,k))*
-                                    (xzlo(i+1,jc,k  )-xzlo(i,jc,k))
-                   - (0.25*l_dt/dz)*(w_ad(i  ,jc,k+1)+w_ad(i,jc,k))*
-                                    (zxlo(i  ,jc,k+1)-zxlo(i,jc,k));
-            stl +=  0.5 * l_dt * f(i,jc,k,n);
+            //
+            // Left side of interface
+            //
+            {
+                int jc = j-1;
+                if (flag(i,jc,k).isRegular())
+                {
+                    stl += - (0.25*l_dt/dx)*(u_ad(i+1,jc,k  )+u_ad(i,jc,k))*
+                                            (xzlo(i+1,jc,k  )-xzlo(i,jc,k))
+                           - (0.25*l_dt/dz)*(w_ad(i  ,jc,k+1)+w_ad(i,jc,k))*
+                                            (zxlo(i  ,jc,k+1)-zxlo(i,jc,k));
+                    stl +=  0.5 * l_dt * f(i,jc,k,n);
 
-        // Only add dt-based terms if we can construct all transverse terms
-        //    using non-covered faces
-        } else if (apx(i+1,jc,k  ) > 0. && apx(i,jc,k) > 0. &&
-                   apz(i  ,jc,k+1) > 0. && apz(i,jc,k) > 0.)
-        {
-            create_transverse_terms_for_yface(i, jc, k, u_ad, w_ad, xzlo, zxlo,
-                                              apx, apz, fcx, fcz, trans_x, trans_z,
-                                              dx, dz);
+                    // Only add dt-based terms if we can construct all transverse terms
+                    //    using non-covered faces
+                } else if (apx(i+1,jc,k  ) > 0. && apx(i,jc,k) > 0. &&
+                           apz(i  ,jc,k+1) > 0. && apz(i,jc,k) > 0.)
+                {
+                    create_transverse_terms_for_yface(i, jc, k, u_ad, w_ad, xzlo, zxlo,
+                                                      apx, apz, fcx, fcz, trans_x, trans_z,
+                                                      dx, dz);
 
-            stl += -0.5 * l_dt * (trans_x + trans_z);
-            stl +=  0.5 * l_dt * f(i,jc,k,n);
-        }
-        }
+                    stl += -0.5 * l_dt * (trans_x + trans_z);
+                    stl +=  0.5 * l_dt * f(i,jc,k,n);
+                }
+            }
 
-        //
-        // Right side of interface
-        //
-        {
-        int jc = j;
-        if (flag(i,jc,k).isRegular())
-        {
-            sth += - (0.25*l_dt/dx)*(u_ad(i+1,jc,k  )+u_ad(i,jc,k))*
-                                    (xzlo(i+1,jc,k  )-xzlo(i,jc,k))
-                   - (0.25*l_dt/dz)*(w_ad(i  ,jc,k+1)+w_ad(i,jc,k))*
-                                    (zxlo(i  ,jc,k+1)-zxlo(i,jc,k));
-            sth +=  0.5 * l_dt * f(i,jc,k,n);
+            //
+            // Right side of interface
+            //
+            {
+                int jc = j;
+                if (flag(i,jc,k).isRegular())
+                {
+                    sth += - (0.25*l_dt/dx)*(u_ad(i+1,jc,k  )+u_ad(i,jc,k))*
+                                            (xzlo(i+1,jc,k  )-xzlo(i,jc,k))
+                           - (0.25*l_dt/dz)*(w_ad(i  ,jc,k+1)+w_ad(i,jc,k))*
+                                            (zxlo(i  ,jc,k+1)-zxlo(i,jc,k));
+                    sth +=  0.5 * l_dt * f(i,jc,k,n);
 
-        // Only add dt-based terms if we can construct all transverse terms
-        //    using non-covered faces
-        } else if (apx(i+1,jc,k  ) > 0. && apx(i,jc,k) > 0. &&
-                   apz(i  ,jc,k+1) > 0. && apz(i,jc,k) > 0.)
-        {
-            create_transverse_terms_for_yface(i, jc, k, u_ad, w_ad, xzlo, zxlo,
-                                              apx, apz, fcx, fcz, trans_x, trans_z,
-                                              dx, dz);
+                    // Only add dt-based terms if we can construct all transverse terms
+                    //    using non-covered faces
+                } else if (apx(i+1,jc,k  ) > 0. && apx(i,jc,k) > 0. &&
+                           apz(i  ,jc,k+1) > 0. && apz(i,jc,k) > 0.)
+                {
+                    create_transverse_terms_for_yface(i, jc, k, u_ad, w_ad, xzlo, zxlo,
+                                                      apx, apz, fcx, fcz, trans_x, trans_z,
+                                                      dx, dz);
 
-            sth += -0.5 * l_dt * (trans_x + trans_z);
-            sth +=  0.5 * l_dt * f(i,jc,k,n);
-        }
-        }
+                    sth += -0.5 * l_dt * (trans_x + trans_z);
+                    sth +=  0.5 * l_dt * f(i,jc,k,n);
+                }
+            }
 
-        HydroBC::SetYEdgeBCs( i, j, k, n, q, stl, sth, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
+            HydroBC::SetYEdgeBCs( i, j, k, n, q, stl, sth, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
 
-        // Prevent backflow
-        if ( (j==dlo.y) && (bc.lo(1) == BCType::foextrap || bc.lo(1) == BCType::hoextrap) )
-        {
-            sth = amrex::min(sth,0.0_rt);
-            stl = sth;
-        }
-        if ( (j==dhi.y+1) && (bc.hi(1) == BCType::foextrap || bc.hi(1) == BCType::hoextrap) )
-        {
-            stl = amrex::max(stl,0.0_rt);
-            sth = stl;
-        }
+            // Prevent backflow
+            if ( (j==dlo.y) && (bc.lo(1) == BCType::foextrap || bc.lo(1) == BCType::hoextrap) )
+            {
+                sth = amrex::min(sth,0.0_rt);
+                stl = sth;
+            }
+            if ( (j==dhi.y+1) && (bc.hi(1) == BCType::foextrap || bc.hi(1) == BCType::hoextrap) )
+            {
+                stl = amrex::max(stl,0.0_rt);
+                sth = stl;
+            }
 
-        Real st = ( (stl+sth) >= 0.) ? stl : sth;
-        bool ltm = ( (stl <= 0. && sth >= 0.) || (amrex::Math::abs(stl+sth) < small_vel) );
-        qy(i,j,k) = ltm ? 0. : st;
+            Real st = ( (stl+sth) >= 0.) ? stl : sth;
+            bool ltm = ( (stl <= 0. && sth >= 0.) || (amrex::Math::abs(stl+sth) < small_vel) );
+            qy(i,j,k) = ltm ? 0. : st;
 
         } else {
             qy(i,j,k) = 0.;
@@ -479,87 +479,87 @@ EBGodunov::ExtrapVelToFacesOnBox ( Box const& bx, int ncomp,
     {
         if (flag(i,j,k).isConnected(0,0,-1))
         {
-        constexpr int n = 2;
-        auto bc = pbc[n];
+            constexpr int n = 2;
+            auto bc = pbc[n];
 
-        // stl is on the lo side of the lo-z side of cell (i,j,k)
-        // sth is on the hi side of the lo-z side of cell (i,j,k)
-        Real stl = zlo(i,j,k,n);
-        Real sth = zhi(i,j,k,n);
+            // stl is on the lo side of the lo-z side of cell (i,j,k)
+            // sth is on the hi side of the lo-z side of cell (i,j,k)
+            Real stl = zlo(i,j,k,n);
+            Real sth = zhi(i,j,k,n);
 
-        Real trans_x, trans_y;
+            Real trans_x, trans_y;
 
-        //
-        // Lo side of interface
-        //
-        {
-        int kc = k-1;
-        if (flag(i,j,kc).isRegular())
-        {
-            stl += - (0.25*l_dt/dx)*(u_ad(i+1,j  ,kc)+u_ad(i,j,kc))*
-                                    (xylo(i+1,j  ,kc)-xylo(i,j,kc))
-                   - (0.25*l_dt/dy)*(v_ad(i  ,j+1,kc)+v_ad(i,j,kc))*
-                                    (yxlo(i  ,j+1,kc)-yxlo(i,j,kc));
-            stl +=  0.5 * l_dt * f(i,j,kc,n);
+            //
+            // Lo side of interface
+            //
+            {
+                int kc = k-1;
+                if (flag(i,j,kc).isRegular())
+                {
+                    stl += - (0.25*l_dt/dx)*(u_ad(i+1,j  ,kc)+u_ad(i,j,kc))*
+                                            (xylo(i+1,j  ,kc)-xylo(i,j,kc))
+                           - (0.25*l_dt/dy)*(v_ad(i  ,j+1,kc)+v_ad(i,j,kc))*
+                                            (yxlo(i  ,j+1,kc)-yxlo(i,j,kc));
+                    stl +=  0.5 * l_dt * f(i,j,kc,n);
 
-        // Only add dt-based terms if we can construct all transverse terms
-        //    using non-covered faces
-        } else if (apx(i+1,j  ,kc) > 0. && apx(i,j,kc) > 0. &&
-                   apy(i  ,j+1,kc) > 0. && apy(i,j,kc) > 0.)
-        {
-            create_transverse_terms_for_zface(i, j, kc, u_ad, v_ad, xylo, yxlo,
-                                              apx, apy, fcx, fcy, trans_x, trans_y,
-                                              dx, dy);
+                    // Only add dt-based terms if we can construct all transverse terms
+                    //    using non-covered faces
+                } else if (apx(i+1,j  ,kc) > 0. && apx(i,j,kc) > 0. &&
+                           apy(i  ,j+1,kc) > 0. && apy(i,j,kc) > 0.)
+                {
+                    create_transverse_terms_for_zface(i, j, kc, u_ad, v_ad, xylo, yxlo,
+                                                      apx, apy, fcx, fcy, trans_x, trans_y,
+                                                      dx, dy);
 
-            stl += -0.5 * l_dt * (trans_x + trans_y);
-            stl +=  0.5 * l_dt * f(i,j,kc,n);
-        }
-        }
+                    stl += -0.5 * l_dt * (trans_x + trans_y);
+                    stl +=  0.5 * l_dt * f(i,j,kc,n);
+                }
+            }
 
-        //
-        // Right side of interface
-        //
-        {
-        int kc = k;
-        if (flag(i,j,kc).isRegular())
-        {
-            sth += - (0.25*l_dt/dx)*(u_ad(i+1,j  ,kc)+u_ad(i,j,kc))*
-                                    (xylo(i+1,j  ,kc)-xylo(i,j,kc))
-                   - (0.25*l_dt/dy)*(v_ad(i  ,j+1,kc)+v_ad(i,j,kc))*
-                                    (yxlo(i  ,j+1,kc)-yxlo(i,j,kc));
-            sth +=  0.5 * l_dt * f(i,j,kc,n);
-        // Only add dt-based terms if we can construct all transverse terms
-        //    using non-covered faces
-        } else if (apx(i+1,j  ,kc) > 0. && apx(i,j,kc) > 0. &&
-                   apy(i  ,j+1,kc) > 0. && apy(i,j,kc) > 0.)
-        {
-            create_transverse_terms_for_zface(i, j, kc, u_ad, v_ad, xylo, yxlo,
-                                              apx, apy, fcx, fcy, trans_x, trans_y,
-                                              dx, dy);
+            //
+            // Right side of interface
+            //
+            {
+                int kc = k;
+                if (flag(i,j,kc).isRegular())
+                {
+                    sth += - (0.25*l_dt/dx)*(u_ad(i+1,j  ,kc)+u_ad(i,j,kc))*
+                                            (xylo(i+1,j  ,kc)-xylo(i,j,kc))
+                           - (0.25*l_dt/dy)*(v_ad(i  ,j+1,kc)+v_ad(i,j,kc))*
+                                            (yxlo(i  ,j+1,kc)-yxlo(i,j,kc));
+                    sth +=  0.5 * l_dt * f(i,j,kc,n);
+                    // Only add dt-based terms if we can construct all transverse terms
+                    //    using non-covered faces
+                } else if (apx(i+1,j  ,kc) > 0. && apx(i,j,kc) > 0. &&
+                           apy(i  ,j+1,kc) > 0. && apy(i,j,kc) > 0.)
+                {
+                    create_transverse_terms_for_zface(i, j, kc, u_ad, v_ad, xylo, yxlo,
+                                                      apx, apy, fcx, fcy, trans_x, trans_y,
+                                                      dx, dy);
 
-            sth += -0.5 * l_dt * (trans_x + trans_y);
-            sth +=  0.5 * l_dt * f(i,j,kc,n);
-        }
-        }
+                    sth += -0.5 * l_dt * (trans_x + trans_y);
+                    sth +=  0.5 * l_dt * f(i,j,kc,n);
+                }
+            }
 
-        HydroBC::SetZEdgeBCs( i, j, k, n, q, stl, sth, bc.lo(2), dlo.z, bc.hi(2), dhi.z, true);
+            HydroBC::SetZEdgeBCs( i, j, k, n, q, stl, sth, bc.lo(2), dlo.z, bc.hi(2), dhi.z, true);
 
 
-        // Prevent backflow
-        if ( (k==dlo.z) && (bc.lo(2) == BCType::foextrap || bc.lo(2) == BCType::hoextrap) )
-        {
-            sth = amrex::min(sth,0.0_rt);
-            stl = sth;
-        }
-        if ( (k==dhi.z+1) && (bc.hi(2) == BCType::foextrap || bc.hi(2) == BCType::hoextrap) )
-        {
-            stl = amrex::max(stl,0.0_rt);
-            sth = stl;
-        }
+            // Prevent backflow
+            if ( (k==dlo.z) && (bc.lo(2) == BCType::foextrap || bc.lo(2) == BCType::hoextrap) )
+            {
+                sth = amrex::min(sth,0.0_rt);
+                stl = sth;
+            }
+            if ( (k==dhi.z+1) && (bc.hi(2) == BCType::foextrap || bc.hi(2) == BCType::hoextrap) )
+            {
+                stl = amrex::max(stl,0.0_rt);
+                sth = stl;
+            }
 
-        Real st = ( (stl+sth) >= 0.) ? stl : sth;
-        bool ltm = ( (stl <= 0. && sth >= 0.) || (amrex::Math::abs(stl+sth) < small_vel) );
-        qz(i,j,k) = ltm ? 0. : st;
+            Real st = ( (stl+sth) >= 0.) ? stl : sth;
+            bool ltm = ( (stl <= 0. && sth >= 0.) || (amrex::Math::abs(stl+sth) < small_vel) );
+            qz(i,j,k) = ltm ? 0. : st;
 
         } else {
             qz(i,j,k) = 0.0_rt;
