@@ -79,7 +79,7 @@ void SetXEdgeBCs( const int i, const int j, const int k, const int n,
         }
         else
         {
-            amrex::Abort("HydroBC::SetXEdgeBCs: Unknown BC type.");
+            if (bclo != BCType::int_dir) amrex::Abort("HydroBC::SetXEdgeBCs: Unknown BC type.");
         }
     }
     // High X
@@ -102,7 +102,7 @@ void SetXEdgeBCs( const int i, const int j, const int k, const int n,
         }
         else
         {
-            amrex::Abort("HydroBC::SetXEdgeBCs: Unknown BC type.");
+            if (bchi != BCType::int_dir) amrex::Abort("HydroBC::SetXEdgeBCs: Unknown BC type.");
         }
     }
     else if ( i < domlo || i > domhi+1 )
@@ -156,7 +156,7 @@ void SetYEdgeBCs ( const int i, const int j, const int k, const int n,
         }
         else
         {
-            amrex::Abort("HydroBC::SetYEdgeBCs: Unknown BC type.");
+            if (bclo != BCType::int_dir) amrex::Abort("HydroBC::SetYEdgeBCs: Unknown BC type.");
         }
     }
     // High Y
@@ -179,7 +179,7 @@ void SetYEdgeBCs ( const int i, const int j, const int k, const int n,
         }
         else
         {
-            amrex::Abort("HydroBC::SetYEdgeBCs: Unknown BC type.");
+            if (bchi != BCType::int_dir) amrex::Abort("HydroBC::SetYEdgeBCs: Unknown BC type.");
         }
     }
     else if ( j < domlo || j > domhi+1 )
@@ -238,7 +238,7 @@ void SetZEdgeBCs ( const int i, const int j, const int k, const int n,
         }
         else
         {
-            amrex::Abort("HydroBC::SetZEdgeBCs: Unknown BC type.");
+            if (bclo != BCType::int_dir) amrex::Abort("HydroBC::SetZEdgeBCs: Unknown BC type.");
         }
     }
     // High Z
@@ -261,7 +261,7 @@ void SetZEdgeBCs ( const int i, const int j, const int k, const int n,
         }
         else
         {
-            amrex::Abort("HydroBC::SetZEdgeBCs: Unknown BC type.");
+            if (bchi != BCType::int_dir) amrex::Abort("HydroBC::SetZEdgeBCs: Unknown BC type.");
         }
     }
     else if ( k < domlo || k > domhi+1 )
