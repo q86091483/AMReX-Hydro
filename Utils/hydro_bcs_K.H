@@ -44,7 +44,8 @@ namespace HydroBC{
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void SetXEdgeBCs( const int i, const int j, const int k, const int n,
                   const amrex::Array4<const amrex::Real> &s,
-                  amrex::Real &lo, amrex::Real &hi,
+                  const amrex::Array4<amrex::Real> &lo,
+                  const amrex::Array4< amrex::Real> &hi,
                   const int bclo, const int domlo,
                   const int bchi, const int domhi,
                   const bool is_velocity )
@@ -52,11 +53,19 @@ void SetXEdgeBCs( const int i, const int j, const int k, const int n,
 
     using namespace amrex;
 
+
+    // Low X
     if (i == domlo)
     {
         if (bclo == BCType::ext_dir)
         {
             lo = s(domlo-1, j, k, n);
+
+            // Enforce hi=lo for the normal velocity only.
+            // For turbulent inflow, there can be times when the inflow face actually has
+            // outflowing velocity. In this case, use the normal component as specified by
+            // the BC, but then allow that outflowing velocity to transport values that come
+            // from the interior.
             if ( n==XVEL && is_velocity ) hi=lo;
         }
         else if ( bclo == BCType::foextrap || bclo == BCType::hoextrap ||
@@ -69,7 +78,12 @@ void SetXEdgeBCs( const int i, const int j, const int k, const int n,
             hi = 0.;
             lo = hi;
         }
+        else
+        {
+            amrex::Abort("HydroBC::SetXEdgeBCs: Unknown BC type.");
+        }
     }
+    // High X
     else if (i == domhi+1)
     {
         if (bchi == BCType::ext_dir)
@@ -87,6 +101,17 @@ void SetXEdgeBCs( const int i, const int j, const int k, const int n,
             lo = 0.;
             hi = lo;
         }
+        else
+        {
+            amrex::Abort("HydroBC::SetXEdgeBCs: Unknown BC type.");
+        }
+    }
+    else if ( i < domlo || i > domhi+1 )
+    {
+        // This should never actually get used. Set to bogus large value so we know if
+        // it's ever used.
+        lo = covered_val;
+        hi = lo;    
     }
     else
         return;
@@ -111,6 +136,8 @@ void SetYEdgeBCs ( const int i, const int j, const int k, const int n,
 {
     using namespace amrex;
 
+
+    // Low Y
     if (j == domlo)
     {
         if (bclo == BCType::ext_dir)
@@ -128,8 +155,13 @@ void SetYEdgeBCs ( const int i, const int j, const int k, const int n,
             hi = 0.;
             lo = hi;
         }
+        else
+        {
+            amrex::Abort("HydroBC::SetYEdgeBCs: Unknown BC type.");
+        }
     }
-    else  if (j == domhi+1)
+    // High Y
+    else if (j == domhi+1)
     {
         if (bchi == BCType::ext_dir)
         {
@@ -146,6 +178,17 @@ void SetYEdgeBCs ( const int i, const int j, const int k, const int n,
             lo = 0.;
             hi = lo;
         }
+        else
+        {
+            amrex::Abort("HydroBC::SetYEdgeBCs: Unknown BC type.");
+        }
+    }
+    else if ( j < domlo || j > domhi+1 )
+    {
+        // This should never actually get used. Set to bogus large value so we know if
+        // it's ever used.
+        lo = covered_val;
+        hi = lo;    
     }
     else
         return;
@@ -175,6 +218,8 @@ void SetZEdgeBCs ( const int i, const int j, const int k, const int n,
 {
     using namespace amrex;
 
+
+    // Low Z
     if (k == domlo)
     {
         if (bclo == BCType::ext_dir)
@@ -192,8 +237,13 @@ void SetZEdgeBCs ( const int i, const int j, const int k, const int n,
             hi = 0.;
             lo = hi;
         }
+        else
+        {
+            amrex::Abort("HydroBC::SetZEdgeBCs: Unknown BC type.");
+        }
     }
-    else if (k == domhi+1)
+    // High Z
+    else if (k > domhi)
     {
         if (bchi == BCType::ext_dir)
         {
@@ -210,6 +260,17 @@ void SetZEdgeBCs ( const int i, const int j, const int k, const int n,
             lo = 0.;
             hi = lo;
         }
+        else
+        {
+            amrex::Abort("HydroBC::SetZEdgeBCs: Unknown BC type.");
+        }
+    }
+    else if ( k < domlo || k > domhi+1 )
+    {
+        // This should never actually get used. Set to bogus large value so we know if
+        // it's every used.
+        lo = covered_val;
+        hi = lo;    
     }
     else
         return;
