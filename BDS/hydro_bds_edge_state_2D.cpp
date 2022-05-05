@@ -399,32 +399,32 @@ BDS::ComputeConc (Box const& bx,
             if (bc.lo(0) == BCType::ext_dir) {
                 ux(i,j,k) = vy(i,j,k) = 0.;
             } else { // foextrap and hoextrap
-                ux(i,j,k) = ux(i+1,j,k);
-                vy(i,j,k) = vy(i+1,j,k);
+                ux(i,j,k) = (umac(i+2,j,k) - umac(i+1,j,k)) / hx;
+                vy(i,j,k) = (vmac(i+1,j+1,k) - vmac(i+1,j,k)) / hy;
             }
         }
         if ( i==dhi.x+1 && hi_x_physbc ) {
             if (bc.hi(0) == BCType::ext_dir) {
                 ux(i,j,k) = vy(i,j,k) = 0.;
             } else { // foextrap and hoextrap
-                ux(i,j,k) = ux(i-1,j,k);
-                vy(i,j,k) = vy(i-1,j,k);
+                ux(i,j,k) = (umac(i,j,k) - umac(i-1,j,k)) / hx;
+                vy(i,j,k) = (vmac(i-1,j+1,k) - vmac(i-1,j,k)) / hy;
             }
         }
         if ( j==dlo.y-1 && lo_y_physbc ) {
             if (bc.lo(1) == BCType::ext_dir) {
                 ux(i,j,k) = vy(i,j,k) = 0.;
             } else { // foextrap and hoextrap
-                ux(i,j,k) = ux(i,j+1,k);
-                vy(i,j,k) = vy(i,j+1,k);
+                ux(i,j,k) = (umac(i+1,j+1,k) - umac(i,j+1,k)) / hx;
+                vy(i,j,k) = (vmac(i,j+2,k) - vmac(i,j+1,k)) / hy;
             }
         }
         if ( j==dhi.y+1 && hi_y_physbc ) {
             if (bc.hi(1) == BCType::ext_dir) {
                 ux(i,j,k) = vy(i,j,k) = 0.;
             } else { // foextrap and hoextrap
-                ux(i,j,k) = ux(i,j-1,k);
-                vy(i,j,k) = vy(i,j-1,k);
+                ux(i,j,k) = (umac(i+1,j-1,k) - umac(i,j-1,k)) / hx;
+                vy(i,j,k) = (vmac(i,j,k) - vmac(i,j-1,k)) / hy;
             }
         }
     });
