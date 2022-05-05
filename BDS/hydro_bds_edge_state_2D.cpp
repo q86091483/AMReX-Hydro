@@ -391,6 +391,44 @@ BDS::ComputeConc (Box const& bx,
         vy(i,j,k) = (vmac(i,j+1,k) - vmac(i,j,k)) / hy;
     });
 
+    ParallelFor(gbx, [=] AMREX_GPU_DEVICE (int i, int j, int k){
+        // at physical boundaries, umac ghost cells are not filled
+        // for transverse faces near physical boundaries, the stencil reaches
+        // into the ghost region, so we must define ux and vy sensibly
+        if ( i==dlo.x-1 && lo_x_physbc ) {
+            if (bc.lo(0) == BCType::ext_dir) {
+                ux(i,j,k) = vy(i,j,k) = 0.;
+            } else { // foextrap and hoextrap
+                ux(i,j,k) = ux(i+1,j,k);
+                vy(i,j,k) = vy(i+1,j,k);
+            }
+        }
+        if ( i==dhi.x+1 && hi_x_physbc ) {
+            if (bc.hi(0) == BCType::ext_dir) {
+                ux(i,j,k) = vy(i,j,k) = 0.;
+            } else { // foextrap and hoextrap
+                ux(i,j,k) = ux(i-1,j,k);
+                vy(i,j,k) = vy(i-1,j,k);
+            }
+        }
+        if ( j==dlo.y-1 && lo_y_physbc ) {
+            if (bc.lo(1) == BCType::ext_dir) {
+                ux(i,j,k) = vy(i,j,k) = 0.;
+            } else { // foextrap and hoextrap
+                ux(i,j,k) = ux(i,j+1,k);
+                vy(i,j,k) = vy(i,j+1,k);
+            }
+        }
+        if ( j==dhi.y+1 && hi_y_physbc ) {
+            if (bc.hi(1) == BCType::ext_dir) {
+                ux(i,j,k) = vy(i,j,k) = 0.;
+            } else { // foextrap and hoextrap
+                ux(i,j,k) = ux(i,j-1,k);
+                vy(i,j,k) = vy(i,j-1,k);
+            }
+        }
+    });
+    
     // compute sedgex on x-faces
     Box const& xbx = amrex::surroundingNodes(bx,0);
     ParallelFor(xbx, [=] AMREX_GPU_DEVICE (int i, int j, int k){

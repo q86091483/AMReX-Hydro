@@ -597,6 +597,64 @@ BDS::ComputeConc (Box const& bx,
           ux(i,j,k) = (umac(i+1,j,k) - umac(i,j,k)) / hx;
           vy(i,j,k) = (vmac(i,j+1,k) - vmac(i,j,k)) / hy;
           wz(i,j,k) = (wmac(i,j,k+1) - wmac(i,j,k)) / hz;
+          
+          // at physical boundaries, umac ghost cells are not filled
+          // for transverse faces near physical boundaries, the stencil reaches
+          // into the ghost region, so we must define ux, vy, and wz sensibly
+          if ( i==dlo.x-1 && lo_x_physbc ) {
+              if (bc.lo(0) == BCType::ext_dir) {
+                  ux(i,j,k) = vy(i,j,k) = wz(i,j,k) = 0.;
+              } else { // foextrap and hoextrap
+                  ux(i,j,k) = (umac(i+2,j,k) - umac(i+1,j,k)) / hx;
+                  vy(i,j,k) = (vmac(i+1,j+1,k) - vmac(i+1,j,k)) / hy;
+                  wz(i,j,k) = (wmac(i+1,j,k+1) - wmac(i+1,j,k)) / hz;
+              }
+          }
+          if ( i==dhi.x+1 && hi_x_physbc ) {
+              if (bc.hi(0) == BCType::ext_dir) {
+                  ux(i,j,k) = vy(i,j,k) = wz(i,j,k) = 0.;
+              } else { // foextrap and hoextrap
+                  ux(i,j,k) = (umac(i,j,k) - umac(i-1,j,k)) / hx;
+                  vy(i,j,k) = (vmac(i-1,j+1,k) - vmac(i-1,j,k)) / hy;
+                  wz(i,j,k) = (wmac(i-1,j,k+1) - wmac(i-1,j,k)) / hz;
+              }
+          }
+          if ( j==dlo.y-1 && lo_y_physbc ) {
+              if (bc.lo(1) == BCType::ext_dir) {
+                  ux(i,j,k) = vy(i,j,k) = wz(i,j,k) = 0.;
+              } else { // foextrap and hoextrap
+                  ux(i,j,k) = (umac(i+1,j+1,k) - umac(i,j+1,k)) / hx;
+                  vy(i,j,k) = (vmac(i,j+2,k) - vmac(i,j+1,k)) / hy;
+                  wz(i,j,k) = (wmac(i,j+1,k+1) - wmac(i,j+1,k)) / hz;
+              }
+          }
+          if ( j==dhi.y+1 && hi_y_physbc ) {
+              if (bc.hi(1) == BCType::ext_dir) {
+                  ux(i,j,k) = vy(i,j,k) = wz(i,j,k) = 0.;
+              } else { // foextrap and hoextrap
+                  ux(i,j,k) = (umac(i+1,j-1,k) - umac(i,j-1,k)) / hx;
+                  vy(i,j,k) = (vmac(i,j,k) - vmac(i,j-1,k)) / hy;
+                  wz(i,j,k) = (wmac(i,j-1,k+1) - wmac(i,j-1,k)) / hz;
+              }
+          }
+          if ( k==dlo.z-1 && lo_z_physbc ) {
+              if (bc.lo(2) == BCType::ext_dir) {
+                  ux(i,j,k) = vy(i,j,k) = wz(i,j,k) = 0.;
+              } else { // foextrap and hoextrap
+                  ux(i,j,k) = (umac(i+1,j,k+1) - umac(i,j,k+1)) / hx;
+                  vy(i,j,k) = (vmac(i,j+1,k+1) - vmac(i,j,k+1)) / hy;
+                  wz(i,j,k) = (wmac(i,j,k+2) - wmac(i,j,k+1)) / hz;
+              }
+          }
+          if ( k==dhi.z+1 && hi_z_physbc ) {
+              if (bc.hi(2) == BCType::ext_dir) {
+                  ux(i,j,k) = vy(i,j,k) = wz(i,j,k) = 0.;
+              } else { // foextrap and hoextrap
+                  ux(i,j,k) = (umac(i+1,j,k-1) - umac(i,j,k-1)) / hx;
+                  vy(i,j,k) = (vmac(i,j+1,k-1) - vmac(i,j,k-1)) / hy;
+                  wz(i,j,k) = (wmac(i,j,k) - wmac(i,j,k-1)) / hz;
+              }
+          }
     });
 
     // compute sedgex on x-faces
