@@ -11,57 +11,35 @@
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_BCRec.H>
 
+/**
+ * Collection of routines for the BDS (Bell-Dawson-Shubin) algorithm.
+ */
 namespace BDS {
 
-
-void ComputeAofs ( amrex::MultiFab& aofs, const int aofs_comp, const int ncomp,
-                   amrex::MultiFab const& state, const int state_comp,
-                   AMREX_D_DECL( amrex::MultiFab const& umac,
-                                 amrex::MultiFab const& vmac,
-                                 amrex::MultiFab const& wmac),
-                   AMREX_D_DECL( amrex::MultiFab& xedge,
-                                 amrex::MultiFab& yedge,
-                                 amrex::MultiFab& zedge),
-                   const int  edge_comp,
-                   const bool known_edgestate,
-                   AMREX_D_DECL( amrex::MultiFab& xfluxes,
-                                 amrex::MultiFab& yfluxes,
-                                 amrex::MultiFab& zfluxes),
-                   int fluxes_comp,
-                   amrex::MultiFab const& fq,
-                   const int fq_comp,
-                   amrex::MultiFab const& divu,
-                   amrex::BCRec const* d_bc,
-                   amrex::Geometry const& geom,
-                   amrex::Vector<int>& iconserv,
-                   const amrex::Real dt,
-                   const bool is_velocity);
-
-void ComputeSyncAofs ( amrex::MultiFab& aofs, const int aofs_comp, const int ncomp,
-                       amrex::MultiFab const& state, const int state_comp,
-                       AMREX_D_DECL( amrex::MultiFab const& umac,
-                                     amrex::MultiFab const& vmac,
-                                     amrex::MultiFab const& wmac),
-                       AMREX_D_DECL( amrex::MultiFab const& ucorr,
-                                     amrex::MultiFab const& vcorr,
-                                     amrex::MultiFab const& wcorr),
-                       AMREX_D_DECL( amrex::MultiFab& xedge,
-                                     amrex::MultiFab& yedge,
-                                     amrex::MultiFab& zedge),
-                       const int  edge_comp,
-                       const bool known_edgestate,
-                       AMREX_D_DECL( amrex::MultiFab& xfluxes,
-                                     amrex::MultiFab& yfluxes,
-                                     amrex::MultiFab& zfluxes),
-                       int fluxes_comp,
-                       amrex::MultiFab const& fq,
-                       const int fq_comp,
-                       amrex::MultiFab const& divu,
-                       amrex::BCRec const* d_bc,
-                       amrex::Geometry const& geom,
-                       amrex::Gpu::DeviceVector<int>& iconserv,
-                       const amrex::Real dt,
-                       const bool is_velocity);
+/**
+ * Uses the Bell-Dawson-Shubin (BDS) algorithm, a higher order Godunov
+ * method for scalar conservation laws in three dimensions, to compute
+ * edge states.
+ *
+ * \param [in]     bx          Current grid patch
+ * \param [in]     ncomp       Number of components to work on
+ * \param [in]     q           Array4 of state, starting at component of interest
+ * \param [in,out] xedge       Array4 containing x-edges, starting at component of interest
+ * \param [in,out] yedge       Array4 containing y-edges, starting at component of interest
+ * \param [in,out] zedge       Array4 containing z-edges, starting at component of interest
+ * \param [in]     umac        x-Face velocities.
+ * \param [in]     vmac        y-Face velocities.
+ * \param [in]     wmac        z-Face velocities.
+ * \param [in]     fq          Array4 for forces, starting at component of interest
+ * \param [in]     geom        Level geometry.
+ * \param [in]     l_dt        Time step.
+ * \param [in]     h_bcrec     Boundary conditions (host).
+ * \param [in]     pbc         Boundary conditions (device).
+ * \param [in]     iconserv    If true, use conservative form, otherwise use convective.
+ * \param [in]     is_velocity Indicates a component is velocity so boundary conditions can
+ *                             be properly addressed. The header hydro_constants.H
+ *                             defines the component positon by [XYZ]VEL macro.
+ */
 
 void ComputeEdgeState ( amrex::Box const& bx, int ncomp,
                         amrex::Array4<amrex::Real const> const& q,
@@ -75,16 +53,55 @@ void ComputeEdgeState ( amrex::Box const& bx, int ncomp,
                         amrex::Array4<amrex::Real const> const& fq,
                         amrex::Geometry geom,
                         amrex::Real l_dt,
+                        amrex::Vector<amrex::BCRec> const& h_bcrec,
                         amrex::BCRec const* pbc,
                         int const* iconserv,
                         const bool is_velocity);
+
+/**
+ * Compute bilinear slopes for BDS algorithm.
+ *
+ * \param [in]  bx      Current grid patch
+ * \param [in]  geom    Level geometry.
+ * \param [in]  icomp   Component of the state Array4.
+ * \param [in]  s       Array4<const> of state vector.
+ * \param [out] slopes  Array4 to store slope information.
+ * \param [in]  h_bcrec Boundary conditions (host).
+ *
+ */
 
 void ComputeSlopes ( amrex::Box const& bx,
                      const amrex::Geometry& geom,
                      int icomp,
                      amrex::Array4<amrex::Real const> const& s,
                      amrex::Array4<amrex::Real      > const& slopes,
-                     amrex::BCRec const* pbc);
+                     amrex::Vector<amrex::BCRec> const& h_bcrec);
+
+/**
+ * Compute Conc for BDS algorithm.
+ *
+ * \param [in]     bx          Current grid patch
+ * \param [in]     geom        Level geometry.
+ * \param [in]     icomp       Component of the Array4s.
+ * \param [in]     s           Array4 of state.
+ * \param [in,out] sedgex      Array4 containing x-edges.
+ * \param [in,out] sedgey      Array4 containing y-edges.
+ * \param [in,out] sedgez      Array4 containing z-edges.
+ * \param [in]     slopes      Array4 containing slope information.
+ * \param [in]     umac        Array4 for u-face velocity.
+ * \param [in]     vmac        Array4 for v-face velocity.
+ * \param [in]     wmac        Array4 for z-face velocity.
+ * \param [in]     force       Array4 for forces.
+ * \param [in]     iconserv    If true, use conservative form, otherwise use convective.
+ * \param [in]     dt          Time step.
+ * \param [in]     h_bcrec     Boundary conditions (host).
+ * \param [in]     pbc         Boundary conditions (device).
+ * \param [in]     is_velocity Indicates a component is velocity so boundary conditions can
+ *                             be properly addressed. The header hydro_constants.H
+ *                             defines the component positon by [XYZ]VEL macro.
+ *
+ *
+ */
 
 void ComputeConc ( amrex::Box const& bx,
                    const amrex::Geometry& geom,
@@ -101,6 +118,7 @@ void ComputeConc ( amrex::Box const& bx,
                    amrex::Array4<amrex::Real const> const& force,
                    int const* iconserv,
                    const amrex::Real dt,
+                   amrex::Vector<amrex::BCRec> const& h_bcrec,
                    amrex::BCRec const* pbc,
                    const bool is_velocity);
 

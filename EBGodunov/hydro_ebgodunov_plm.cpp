@@ -20,11 +20,11 @@ namespace {
         std::pair<bool,bool> r{false,false};
         for (int n = 0; n < ncomp; ++n) {
             r.first = r.first
-                 or (bcrec[n].lo(dir) == BCType::ext_dir)
-                 or (bcrec[n].lo(dir) == BCType::hoextrap);
+                 || (bcrec[n].lo(dir) == BCType::ext_dir)
+                 || (bcrec[n].lo(dir) == BCType::hoextrap);
             r.second = r.second
-                 or (bcrec[n].hi(dir) == BCType::ext_dir)
-                 or (bcrec[n].hi(dir) == BCType::hoextrap);
+                 || (bcrec[n].hi(dir) == BCType::ext_dir)
+                 || (bcrec[n].hi(dir) == BCType::hoextrap);
         }
         return r;
     }
@@ -41,7 +41,7 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
                                        Array4<Real const> const& fcy,
                                        Array4<Real const> const& fcz),
                           Array4<Real const> const& ccc,
-                          Geometry& geom,
+                          const Geometry& geom,
                           Real dt,
                           Vector<BCRec> const& h_bcrec,
                           BCRec const* pbc)
@@ -74,13 +74,13 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
     bool has_extdir_or_ho_hi_z = extdir_lohi_z.second;
 #endif
 
-    if ( (has_extdir_or_ho_lo_x && domain_ilo >= xebox.smallEnd(0)-1) or
-         (has_extdir_or_ho_hi_x && domain_ihi <= xebox.bigEnd(0)    ) or
+    if ( (has_extdir_or_ho_lo_x && domain_ilo >= xebox.smallEnd(0)-1) ||
+         (has_extdir_or_ho_hi_x && domain_ihi <= xebox.bigEnd(0)    ) ||
 #if (AMREX_SPACEDIM == 3)
-         (has_extdir_or_ho_lo_z && domain_klo >= xebox.smallEnd(2)-1) or
-         (has_extdir_or_ho_hi_z && domain_khi <= xebox.bigEnd(2)    ) or
+         (has_extdir_or_ho_lo_z && domain_klo >= xebox.smallEnd(2)-1) ||
+         (has_extdir_or_ho_hi_z && domain_khi <= xebox.bigEnd(2)    ) ||
 #endif
-         (has_extdir_or_ho_lo_y && domain_jlo >= xebox.smallEnd(1)-1) or
+         (has_extdir_or_ho_lo_y && domain_jlo >= xebox.smallEnd(1)-1) ||
          (has_extdir_or_ho_hi_y && domain_jhi <= xebox.bigEnd(1)    ) )
     {
         amrex::ParallelFor(xebox, ncomp, [q,ccvel,AMREX_D_DECL(domain_ilo,domain_jlo,domain_klo),
@@ -95,18 +95,18 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
             if (flag(i,j,k).isConnected(-1,0,0))
             {
                 const auto& bc = pbc[n];
-                bool extdir_or_ho_ilo = (bc.lo(0) == BCType::ext_dir) or
+                bool extdir_or_ho_ilo = (bc.lo(0) == BCType::ext_dir) ||
                                         (bc.lo(0) == BCType::hoextrap);
-                bool extdir_or_ho_ihi = (bc.hi(0) == BCType::ext_dir) or
+                bool extdir_or_ho_ihi = (bc.hi(0) == BCType::ext_dir) ||
                                         (bc.hi(0) == BCType::hoextrap);
-                bool extdir_or_ho_jlo = (bc.lo(1) == BCType::ext_dir) or
+                bool extdir_or_ho_jlo = (bc.lo(1) == BCType::ext_dir) ||
                                         (bc.lo(1) == BCType::hoextrap);
-                bool extdir_or_ho_jhi = (bc.hi(1) == BCType::ext_dir) or
+                bool extdir_or_ho_jhi = (bc.hi(1) == BCType::ext_dir) ||
                                         (bc.hi(1) == BCType::hoextrap);
 #if (AMREX_SPACEDIM == 3)
-                bool extdir_or_ho_klo = (bc.lo(2) == BCType::ext_dir) or
+                bool extdir_or_ho_klo = (bc.lo(2) == BCType::ext_dir) ||
                                         (bc.lo(2) == BCType::hoextrap);
-                bool extdir_or_ho_khi = (bc.hi(2) == BCType::ext_dir) or
+                bool extdir_or_ho_khi = (bc.hi(2) == BCType::ext_dir) ||
                                         (bc.hi(2) == BCType::hoextrap);
 #endif
 
@@ -119,14 +119,14 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
                                            vfrac(i+1,j,k) == 1. && vfrac(i+2,j,k) == 1.)
                 {
                     int order = 4;
-                    qpls = q(i  ,j,k,n) + 0.5 * (-1.0 - ccvel(i,j,k,0) * dtdx) *
+                    qpls = q(i  ,j,k,n) + Real(0.5) * (-Real(1.0) - ccvel(i,j,k,0) * dtdx) *
                         amrex_calc_xslope_extdir(i,j,k,n,order,q,extdir_or_ho_ilo,extdir_or_ho_ihi,domain_ilo,domain_ihi);
 
                 // We have enough cells to do 2nd order slopes with all values at cell centers
                 } else if (vfrac(i,j,k) == 1. && vfrac(i-1,j,k) == 1. && vfrac(i+1,j,k) == 1.) {
 
                     int order = 2;
-                    qpls = q(i  ,j,k,n) + 0.5 * (-1.0 - ccvel(i,j,k,0) * dtdx) *
+                    qpls = q(i  ,j,k,n) + Real(0.5) * (-Real(1.0) - ccvel(i,j,k,0) * dtdx) *
                         amrex_calc_xslope_extdir(i,j,k,n,order,q,extdir_or_ho_ilo,extdir_or_ho_ihi,domain_ilo,domain_ihi);
 
                 // We need to use LS slopes
@@ -136,7 +136,7 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
 #if (AMREX_SPACEDIM == 3)
                     Real zf = fcx(i,j,k,1);
 #endif
-                    AMREX_D_TERM(Real delta_x = -0.5 - ccc(i,j,k,0);,
+                    AMREX_D_TERM(Real delta_x = -Real(0.5) - ccc(i,j,k,0);,
                                  Real delta_y =  yf  - ccc(i,j,k,1);,
                                  Real delta_z =  zf  - ccc(i,j,k,2););
 
@@ -164,7 +164,7 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
 #endif
                    qpls = amrex::max(amrex::min(qpls, qcc_max), qcc_min);
 
-                   qpls -= 0.5 * dtdx * ccvel(i,j,k,0) * slopes_eb_hi[0];
+                   qpls -= Real(0.5) * dtdx * ccvel(i,j,k,0) * slopes_eb_hi[0];
 
                 }  // end of making qpls
 
@@ -177,14 +177,14 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
                                              vfrac(i  ,j,k) == 1. && vfrac(i+1,j,k) == 1.)
                 {
                     int order = 4;
-                    qmns = q(i-1,j,k,n) + 0.5 * ( 1.0 - ccvel(i-1,j,k,0) * dtdx) *
+                    qmns = q(i-1,j,k,n) + Real(0.5) * ( Real(1.0) - ccvel(i-1,j,k,0) * dtdx) *
                         amrex_calc_xslope_extdir(i-1,j,k,n,order,q,extdir_or_ho_ilo,extdir_or_ho_ihi,domain_ilo,domain_ihi);
 
                 // We have enough cells to do 2nd order slopes with all values at cell centers
                 } else if (vfrac(i-1,j,k) == 1. && vfrac(i-2,j,k) == 1. && vfrac(i  ,j,k) == 1.)
                 {
                     int order = 2;
-                    qmns = q(i-1,j,k,n) + 0.5 * ( 1.0 - ccvel(i-1,j,k,0) * dtdx) *
+                    qmns = q(i-1,j,k,n) + Real(0.5) * ( Real(1.0) - ccvel(i-1,j,k,0) * dtdx) *
                         amrex_calc_xslope_extdir(i-1,j,k,n,order,q,extdir_or_ho_ilo,extdir_or_ho_ihi,domain_ilo,domain_ihi);
 
                 // We need to use LS slopes
@@ -194,7 +194,7 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
 #if (AMREX_SPACEDIM == 3)
                     Real zf = fcx(i,j,k,1);
 #endif
-                    AMREX_D_TERM(Real delta_x = 0.5 - ccc(i-1,j,k,0);,
+                    AMREX_D_TERM(Real delta_x = Real(0.5) - ccc(i-1,j,k,0);,
                                  Real delta_y = yf  - ccc(i-1,j,k,1);,
                                  Real delta_z = zf  - ccc(i-1,j,k,2););
 
@@ -223,7 +223,7 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
 #endif
                    qmns = amrex::max(amrex::min(qmns, qcc_max), qcc_min);
 
-                   qmns -= 0.5 * dtdx * ccvel(i-1,j,k,0) * slopes_eb_lo[0];
+                   qmns -= Real(0.5) * dtdx * ccvel(i-1,j,k,0) * slopes_eb_lo[0];
 
                 }  // end of making qmns
             }
@@ -254,14 +254,14 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
                                            vfrac(i+1,j,k) == 1. && vfrac(i+2,j,k) == 1.)
                 {
                     int order = 4;
-                    qpls = q(i  ,j,k,n) + 0.5 * (-1.0 - ccvel(i  ,j,k,0) * dtdx) *
+                    qpls = q(i  ,j,k,n) + Real(0.5) * (-Real(1.0) - ccvel(i  ,j,k,0) * dtdx) *
                         amrex_calc_xslope(i,j,k,n,order,q);
 
                 // We have enough cells to do 2nd order slopes with all values at cell centers
                 } else if (vfrac(i,j,k) == 1. && vfrac(i-1,j,k) == 1. && vfrac(i+1,j,k) == 1.) {
 
                     int order = 2;
-                    qpls = q(i  ,j,k,n) + 0.5 * (-1.0 - ccvel(i  ,j,k,0) * dtdx) *
+                    qpls = q(i  ,j,k,n) + Real(0.5) * (-Real(1.0) - ccvel(i  ,j,k,0) * dtdx) *
                         amrex_calc_xslope(i,j,k,n,order,q);
 
                 // We need to use LS slopes
@@ -271,7 +271,7 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
 #if (AMREX_SPACEDIM == 3)
                    Real zf = fcx(i,j,k,1);
 #endif
-                   AMREX_D_TERM(Real delta_x = -0.5 - ccc(i,j,k,0);,
+                   AMREX_D_TERM(Real delta_x = -Real(0.5) - ccc(i,j,k,0);,
                                 Real delta_y =  yf  - ccc(i,j,k,1);,
                                 Real delta_z =  zf  - ccc(i,j,k,2););
 
@@ -294,7 +294,7 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
 #endif
                    qpls = amrex::max(amrex::min(qpls, qcc_max), qcc_min);
 
-                   qpls -= 0.5 * dtdx * ccvel(i,j,k,0) * slopes_eb_hi[0];
+                   qpls -= Real(0.5) * dtdx * ccvel(i,j,k,0) * slopes_eb_hi[0];
 
                 }  // end of making qpls
 
@@ -307,14 +307,14 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
                                              vfrac(i  ,j,k) == 1. && vfrac(i+1,j,k) == 1.)
                 {
                     int order = 4;
-                    qmns = q(i-1,j,k,n) + 0.5 * ( 1.0 - ccvel(i-1,j,k,0) * dtdx) *
+                    qmns = q(i-1,j,k,n) + Real(0.5) * ( Real(1.0) - ccvel(i-1,j,k,0) * dtdx) *
                         amrex_calc_xslope(i-1,j,k,n,order,q);
 
                 // We have enough cells to do 2nd order slopes with all values at cell centers
                 } else if (vfrac(i-1,j,k) == 1. && vfrac(i-2,j,k) == 1. && vfrac(i  ,j,k) == 1.)
                 {
                     int order = 2;
-                    qmns = q(i-1,j,k,n) + 0.5 * ( 1.0 - ccvel(i-1,j,k,0) * dtdx) *
+                    qmns = q(i-1,j,k,n) + Real(0.5) * ( Real(1.0) - ccvel(i-1,j,k,0) * dtdx) *
                         amrex_calc_xslope(i-1,j,k,n,order,q);
 
                 // We need to use LS slopes
@@ -324,7 +324,7 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
 #if (AMREX_SPACEDIM == 3)
                    Real zf = fcx(i,j,k,1);
 #endif
-                   AMREX_D_TERM(Real delta_x = 0.5 - ccc(i-1,j,k,0);,
+                   AMREX_D_TERM(Real delta_x = Real(0.5) - ccc(i-1,j,k,0);,
                                 Real delta_y = yf  - ccc(i-1,j,k,1);,
                                 Real delta_z = zf  - ccc(i-1,j,k,2););
 
@@ -347,7 +347,7 @@ EBPLM::PredictVelOnXFace (Box const& xebox,
 #endif
                    qmns = amrex::max(amrex::min(qmns, qcc_max), qcc_min);
 
-                   qmns -= 0.5 * dtdx * ccvel(i-1,j,k,0) * slopes_eb_lo[0];
+                   qmns -= Real(0.5) * dtdx * ccvel(i-1,j,k,0) * slopes_eb_lo[0];
 
                 }  // end of making qmns
             }
@@ -369,7 +369,7 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
                                        Array4<Real const> const& fcy,
                                        Array4<Real const> const& fcz),
                           Array4<Real const> const& ccc,
-                          Geometry& geom,
+                          const Geometry& geom,
                           Real dt,
                           Vector<BCRec> const& h_bcrec,
                           BCRec const* pbc)
@@ -401,13 +401,13 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
     bool has_extdir_or_ho_hi_z = extdir_lohi_z.second;
 #endif
 
-    if ( (has_extdir_or_ho_lo_x && domain_ilo >= yebox.smallEnd(0)-1) or
-         (has_extdir_or_ho_hi_x && domain_ihi <= yebox.bigEnd(0)    ) or
+    if ( (has_extdir_or_ho_lo_x && domain_ilo >= yebox.smallEnd(0)-1) ||
+         (has_extdir_or_ho_hi_x && domain_ihi <= yebox.bigEnd(0)    ) ||
 #if (AMREX_SPACEDIM == 3)
-         (has_extdir_or_ho_lo_z && domain_klo >= yebox.smallEnd(2)-1) or
-         (has_extdir_or_ho_hi_z && domain_khi <= yebox.bigEnd(2)    ) or
+         (has_extdir_or_ho_lo_z && domain_klo >= yebox.smallEnd(2)-1) ||
+         (has_extdir_or_ho_hi_z && domain_khi <= yebox.bigEnd(2)    ) ||
 #endif
-         (has_extdir_or_ho_lo_y && domain_jlo >= yebox.smallEnd(1)-1) or
+         (has_extdir_or_ho_lo_y && domain_jlo >= yebox.smallEnd(1)-1) ||
          (has_extdir_or_ho_hi_y && domain_jhi <= yebox.bigEnd(1)    ) )
     {
         amrex::ParallelFor(yebox, ncomp, [q,ccvel,AMREX_D_DECL(domain_ilo,domain_jlo,domain_klo),
@@ -422,18 +422,18 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
             if (flag(i,j,k).isConnected(0,-1,0))
             {
                 const auto& bc = pbc[n];
-                bool extdir_or_ho_ilo = (bc.lo(0) == BCType::ext_dir) or
+                bool extdir_or_ho_ilo = (bc.lo(0) == BCType::ext_dir) ||
                                         (bc.lo(0) == BCType::hoextrap);
-                bool extdir_or_ho_ihi = (bc.hi(0) == BCType::ext_dir) or
+                bool extdir_or_ho_ihi = (bc.hi(0) == BCType::ext_dir) ||
                                         (bc.hi(0) == BCType::hoextrap);
-                bool extdir_or_ho_jlo = (bc.lo(1) == BCType::ext_dir) or
+                bool extdir_or_ho_jlo = (bc.lo(1) == BCType::ext_dir) ||
                                         (bc.lo(1) == BCType::hoextrap);
-                bool extdir_or_ho_jhi = (bc.hi(1) == BCType::ext_dir) or
+                bool extdir_or_ho_jhi = (bc.hi(1) == BCType::ext_dir) ||
                                         (bc.hi(1) == BCType::hoextrap);
 #if (AMREX_SPACEDIM == 3)
-                bool extdir_or_ho_klo = (bc.lo(2) == BCType::ext_dir) or
+                bool extdir_or_ho_klo = (bc.lo(2) == BCType::ext_dir) ||
                                         (bc.lo(2) == BCType::hoextrap);
-                bool extdir_or_ho_khi = (bc.hi(2) == BCType::ext_dir) or
+                bool extdir_or_ho_khi = (bc.hi(2) == BCType::ext_dir) ||
                                         (bc.hi(2) == BCType::hoextrap);
 #endif
 
@@ -446,14 +446,14 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
                                            vfrac(i,j+1,k) == 1. && vfrac(i,j+2,k) == 1.)
                 {
                     int order = 4;
-                    qpls = q(i,j  ,k,n) + 0.5 * (-1.0 - ccvel(i  ,j,k,1) * dtdy) *
+                    qpls = q(i,j  ,k,n) + Real(0.5) * (-Real(1.0) - ccvel(i  ,j,k,1) * dtdy) *
                         amrex_calc_yslope_extdir(i,j,k,n,order,q,extdir_or_ho_jlo,extdir_or_ho_jhi,domain_jlo,domain_jhi);
 
                 // We have enough cells to do 2nd order slopes with all values at cell centers
                 } else if (vfrac(i,j,k) == 1. && vfrac(i,j-1,k) == 1. && vfrac(i,j+1,k) == 1.) {
 
                     int order = 2;
-                    qpls = q(i,j  ,k,n) + 0.5 * (-1.0 - ccvel(i  ,j,k,1) * dtdy) *
+                    qpls = q(i,j  ,k,n) + Real(0.5) * (-Real(1.0) - ccvel(i  ,j,k,1) * dtdy) *
                         amrex_calc_yslope_extdir(i,j,k,n,order,q,extdir_or_ho_jlo,extdir_or_ho_jhi,domain_jlo,domain_jhi);
 
                 // We need to use LS slopes
@@ -463,7 +463,7 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
 #if (AMREX_SPACEDIM == 3)
                     Real zf = fcy(i,j,k,1);
 #endif
-                    AMREX_D_TERM(Real delta_y = -0.5 - ccc(i,j,k,1);,
+                    AMREX_D_TERM(Real delta_y = -Real(0.5) - ccc(i,j,k,1);,
                                  Real delta_x =  xf  - ccc(i,j,k,0);,
                                  Real delta_z =  zf  - ccc(i,j,k,2););
 
@@ -491,7 +491,7 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
 #endif
                    qpls = amrex::max(amrex::min(qpls, qcc_max), qcc_min);
 
-                   qpls -= 0.5 * dtdy * ccvel(i,j,k,1) * slopes_eb_hi[1];
+                   qpls -= Real(0.5) * dtdy * ccvel(i,j,k,1) * slopes_eb_hi[1];
 
                 }  // end of making qpls
 
@@ -504,14 +504,14 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
                                              vfrac(i,j  ,k) == 1. && vfrac(i,j+1,k) == 1.)
                 {
                     int order = 4;
-                    qmns = q(i,j-1,k,n) + 0.5 * ( 1.0 - ccvel(i,j-1,k,1) * dtdy) *
+                    qmns = q(i,j-1,k,n) + Real(0.5) * ( Real(1.0) - ccvel(i,j-1,k,1) * dtdy) *
                         amrex_calc_yslope_extdir(i,j-1,k,n,order,q,extdir_or_ho_jlo,extdir_or_ho_jhi,domain_jlo,domain_jhi);
 
                 // We have enough cells to do 2nd order slopes with all values at cell centers
                 } else if (vfrac(i,j-1,k) == 1. && vfrac(i,j-2,k) == 1. && vfrac(i,j  ,k) == 1.)
                 {
                     int order = 2;
-                    qmns = q(i,j-1,k,n) + 0.5 * ( 1.0 - ccvel(i,j-1,k,1) * dtdy) *
+                    qmns = q(i,j-1,k,n) + Real(0.5) * ( Real(1.0) - ccvel(i,j-1,k,1) * dtdy) *
                         amrex_calc_yslope_extdir(i,j-1,k,n,order,q,extdir_or_ho_jlo,extdir_or_ho_jhi,domain_jlo,domain_jhi);
 
                 // We need to use LS slopes
@@ -521,7 +521,7 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
 #if (AMREX_SPACEDIM == 3)
                     Real zf = fcy(i,j,k,1);
 #endif
-                    AMREX_D_TERM(Real delta_y = 0.5 - ccc(i,j-1,k,1);,
+                    AMREX_D_TERM(Real delta_y = Real(0.5) - ccc(i,j-1,k,1);,
                                  Real delta_x = xf  - ccc(i,j-1,k,0);,
                                  Real delta_z = zf  - ccc(i,j-1,k,2););
 
@@ -550,7 +550,7 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
 #endif
                    qmns = amrex::max(amrex::min(qmns, qcc_max), qcc_min);
 
-                   qmns -= 0.5 * dtdy * ccvel(i,j-1,k,1) * slopes_eb_lo[1];
+                   qmns -= Real(0.5) * dtdy * ccvel(i,j-1,k,1) * slopes_eb_lo[1];
 
                 }  // end of making qmns
             }
@@ -581,14 +581,14 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
                                            vfrac(i,j+1,k) == 1. && vfrac(i,j+2,k) == 1.)
                 {
                     int order = 4;
-                    qpls = q(i,j,k,n) + 0.5 * (-1.0 - ccvel(i,j,k,1) * dtdy) *
+                    qpls = q(i,j,k,n) + Real(0.5) * (-Real(1.0) - ccvel(i,j,k,1) * dtdy) *
                         amrex_calc_yslope(i,j,k,n,order,q);
 
                 // We have enough cells to do 2nd order slopes with all values at cell centers
                 } else if (vfrac(i,j,k) == 1. && vfrac(i,j-1,k) == 1. && vfrac(i,j+1,k) == 1.) {
 
                     int order = 2;
-                    qpls = q(i,j,k,n) + 0.5 * (-1.0 - ccvel(i,j,k,1) * dtdy) *
+                    qpls = q(i,j,k,n) + Real(0.5) * (-Real(1.0) - ccvel(i,j,k,1) * dtdy) *
                         amrex_calc_yslope(i,j,k,n,order,q);
 
                 // We need to use LS slopes
@@ -598,7 +598,7 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
 #if (AMREX_SPACEDIM == 3)
                    Real zf = fcy(i,j,k,1);
 #endif
-                   AMREX_D_TERM(Real delta_y = -0.5 - ccc(i,j,k,1);,
+                   AMREX_D_TERM(Real delta_y = -Real(0.5) - ccc(i,j,k,1);,
                                 Real delta_x =  xf  - ccc(i,j,k,0);,
                                 Real delta_z =  zf  - ccc(i,j,k,2););
 
@@ -621,7 +621,7 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
 #endif
                    qpls = amrex::max(amrex::min(qpls, qcc_max), qcc_min);
 
-                   qpls -= 0.5 * dtdy * ccvel(i,j,k,1) * slopes_eb_hi[1];
+                   qpls -= Real(0.5) * dtdy * ccvel(i,j,k,1) * slopes_eb_hi[1];
 
                 }  // end of making qpls
 
@@ -634,14 +634,14 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
                                              vfrac(i,j  ,k) == 1. && vfrac(i,j+1,k) == 1.)
                 {
                     int order = 4;
-                    qmns = q(i,j-1,k,n) + 0.5 * ( 1.0 - ccvel(i,j-1,k,1) * dtdy) *
+                    qmns = q(i,j-1,k,n) + Real(0.5) * ( Real(1.0) - ccvel(i,j-1,k,1) * dtdy) *
                         amrex_calc_yslope(i,j-1,k,n,order,q);
 
                 // We have enough cells to do 2nd order slopes with all values at cell centers
                 } else if (vfrac(i,j-1,k) == 1. && vfrac(i,j-2,k) == 1. && vfrac(i,j  ,k) == 1.)
                 {
                     int order = 2;
-                    qmns = q(i,j-1,k,n) + 0.5 * ( 1.0 - ccvel(i,j-1,k,1) * dtdy) *
+                    qmns = q(i,j-1,k,n) + Real(0.5) * ( Real(1.0) - ccvel(i,j-1,k,1) * dtdy) *
                         amrex_calc_yslope(i,j-1,k,n,order,q);
 
                 // We need to use LS slopes
@@ -651,7 +651,7 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
 #if (AMREX_SPACEDIM == 3)
                    Real zf = fcy(i,j,k,1);
 #endif
-                   AMREX_D_TERM(Real delta_y = 0.5 - ccc(i,j-1,k,1);,
+                   AMREX_D_TERM(Real delta_y = Real(0.5) - ccc(i,j-1,k,1);,
                                 Real delta_x = xf  - ccc(i,j-1,k,0);,
                                 Real delta_z = zf  - ccc(i,j-1,k,2););
 
@@ -674,7 +674,7 @@ EBPLM::PredictVelOnYFace (Box const& yebox,
 #endif
                    qmns = amrex::max(amrex::min(qmns, qcc_max), qcc_min);
 
-                   qmns -= 0.5 * dtdy * ccvel(i,j-1,k,1) * slopes_eb_lo[1];
+                   qmns -= Real(0.5) * dtdy * ccvel(i,j-1,k,1) * slopes_eb_lo[1];
 
                 }  // end of making qmns
             }
@@ -697,7 +697,7 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
                                        Array4<Real const> const& fcy,
                                        Array4<Real const> const& fcz),
                           Array4<Real const> const& ccc,
-                          Geometry& geom,
+                          const Geometry& geom,
                           Real dt,
                           Vector<BCRec> const& h_bcrec,
                           BCRec const* pbc)
@@ -727,11 +727,11 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
     bool has_extdir_or_ho_lo_z = extdir_lohi_z.first;
     bool has_extdir_or_ho_hi_z = extdir_lohi_z.second;
 
-    if ( (has_extdir_or_ho_lo_x && domain_ilo >= zebox.smallEnd(0)-1) or
-         (has_extdir_or_ho_hi_x && domain_ihi <= zebox.bigEnd(0)    ) or
-         (has_extdir_or_ho_lo_z && domain_klo >= zebox.smallEnd(2)-1) or
-         (has_extdir_or_ho_hi_z && domain_khi <= zebox.bigEnd(2)    ) or
-         (has_extdir_or_ho_lo_y && domain_jlo >= zebox.smallEnd(1)-1) or
+    if ( (has_extdir_or_ho_lo_x && domain_ilo >= zebox.smallEnd(0)-1) ||
+         (has_extdir_or_ho_hi_x && domain_ihi <= zebox.bigEnd(0)    ) ||
+         (has_extdir_or_ho_lo_z && domain_klo >= zebox.smallEnd(2)-1) ||
+         (has_extdir_or_ho_hi_z && domain_khi <= zebox.bigEnd(2)    ) ||
+         (has_extdir_or_ho_lo_y && domain_jlo >= zebox.smallEnd(1)-1) ||
          (has_extdir_or_ho_hi_y && domain_jhi <= zebox.bigEnd(1)    ) )
     {
         amrex::ParallelFor(zebox, ncomp, [q,ccvel,AMREX_D_DECL(domain_ilo,domain_jlo,domain_klo),
@@ -746,17 +746,17 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
             if (flag(i,j,k).isConnected(0,0,-1))
             {
                 const auto& bc = pbc[n];
-                bool extdir_or_ho_ilo = (bc.lo(0) == BCType::ext_dir) or
+                bool extdir_or_ho_ilo = (bc.lo(0) == BCType::ext_dir) ||
                                         (bc.lo(0) == BCType::hoextrap);
-                bool extdir_or_ho_ihi = (bc.hi(0) == BCType::ext_dir) or
+                bool extdir_or_ho_ihi = (bc.hi(0) == BCType::ext_dir) ||
                                         (bc.hi(0) == BCType::hoextrap);
-                bool extdir_or_ho_jlo = (bc.lo(1) == BCType::ext_dir) or
+                bool extdir_or_ho_jlo = (bc.lo(1) == BCType::ext_dir) ||
                                         (bc.lo(1) == BCType::hoextrap);
-                bool extdir_or_ho_jhi = (bc.hi(1) == BCType::ext_dir) or
+                bool extdir_or_ho_jhi = (bc.hi(1) == BCType::ext_dir) ||
                                         (bc.hi(1) == BCType::hoextrap);
-                bool extdir_or_ho_klo = (bc.lo(2) == BCType::ext_dir) or
+                bool extdir_or_ho_klo = (bc.lo(2) == BCType::ext_dir) ||
                                         (bc.lo(2) == BCType::hoextrap);
-                bool extdir_or_ho_khi = (bc.hi(2) == BCType::ext_dir) or
+                bool extdir_or_ho_khi = (bc.hi(2) == BCType::ext_dir) ||
                                         (bc.hi(2) == BCType::hoextrap);
 
                 // *************************************************
@@ -768,14 +768,14 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
                                            vfrac(i,j,k+1) == 1. && vfrac(i,j,k+2) == 1.)
                 {
                     int order = 4;
-                    qpls = q(i,j,k,n) + 0.5 * (-1.0 - ccvel(i,j,k,2) * dtdz) *
+                    qpls = q(i,j,k,n) + Real(0.5) * (-Real(1.0) - ccvel(i,j,k,2) * dtdz) *
                         amrex_calc_zslope_extdir(i,j,k,n,order,q,extdir_or_ho_klo,extdir_or_ho_khi,domain_klo,domain_khi);
 
                 // We have enough cells to do 2nd order slopes with all values at cell centers
                 } else if (vfrac(i,j,k) == 1. && vfrac(i,j,k-1) == 1. && vfrac(i,j,k+1) == 1.) {
 
                     int order = 2;
-                    qpls = q(i,j,k,n) + 0.5 * (-1.0 - ccvel(i,j,k,2) * dtdz) *
+                    qpls = q(i,j,k,n) + Real(0.5) * (-Real(1.0) - ccvel(i,j,k,2) * dtdz) *
                         amrex_calc_zslope_extdir(i,j,k,n,order,q,extdir_or_ho_klo,extdir_or_ho_khi,domain_klo,domain_khi);
 
                 // We need to use LS slopes
@@ -784,7 +784,7 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
                    Real xf = fcz(i,j,k,0); // local (x,y) of centroid of z-face we are extrapolating to
                    Real yf = fcz(i,j,k,1);
 
-                   AMREX_D_TERM(Real delta_z = -0.5 - ccc(i,j,k,2);,
+                   AMREX_D_TERM(Real delta_z = -Real(0.5) - ccc(i,j,k,2);,
                                 Real delta_x =  xf  - ccc(i,j,k,0);,
                                 Real delta_y =  yf  - ccc(i,j,k,1););
 
@@ -807,7 +807,7 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
                                      + delta_y * slopes_eb_hi[1];
 
                    qpls = amrex::max(amrex::min(qpls, qcc_max), qcc_min);
-                   qpls -= 0.5 * dtdz * ccvel(i,j,k,2) * slopes_eb_hi[2];
+                   qpls -= Real(0.5) * dtdz * ccvel(i,j,k,2) * slopes_eb_hi[2];
 
 
                 }  // end of making qpls
@@ -821,14 +821,14 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
                                              vfrac(i,j,k  ) == 1. && vfrac(i,j,k+1) == 1.)
                 {
                     int order = 4;
-                    qmns = q(i,j,k-1,n) + 0.5 * ( 1.0 - ccvel(i,j,k-1,2) * dtdz) *
+                    qmns = q(i,j,k-1,n) + Real(0.5) * ( Real(1.0) - ccvel(i,j,k-1,2) * dtdz) *
                         amrex_calc_zslope_extdir(i,j,k-1,n,order,q,extdir_or_ho_klo,extdir_or_ho_khi,domain_klo,domain_khi);
 
                 // We have enough cells to do 2nd order slopes with all values at cell centers
                 } else if (vfrac(i,j,k-1) == 1. && vfrac(i,j,k-2) == 1. && vfrac(i,j,k  ) == 1.)
                 {
                     int order = 2;
-                    qmns = q(i,j,k-1,n) + 0.5 * ( 1.0 - ccvel(i,j,k-1,2) * dtdz) *
+                    qmns = q(i,j,k-1,n) + Real(0.5) * ( Real(1.0) - ccvel(i,j,k-1,2) * dtdz) *
                         amrex_calc_zslope_extdir(i,j,k-1,n,order,q,extdir_or_ho_klo,extdir_or_ho_khi,domain_klo,domain_khi);
 
                 // We need to use LS slopes
@@ -837,7 +837,7 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
                    Real xf = fcz(i,j,k,0); // local (x,y) of centroid of z-face we are extrapolating to
                    Real yf = fcz(i,j,k,1);
 
-                   AMREX_D_TERM(Real delta_z = 0.5 - ccc(i,j,k-1,2);,
+                   AMREX_D_TERM(Real delta_z = Real(0.5) - ccc(i,j,k-1,2);,
                                 Real delta_x = xf  - ccc(i,j,k-1,0);,
                                 Real delta_y = yf  - ccc(i,j,k-1,1););
 
@@ -860,7 +860,7 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
                                        + delta_z * slopes_eb_lo[2];
 
                    qmns = amrex::max(amrex::min(qmns, qcc_max), qcc_min);
-                   qmns -= 0.5 * dtdz * ccvel(i,j,k-1,2) * slopes_eb_lo[2];
+                   qmns -= Real(0.5) * dtdz * ccvel(i,j,k-1,2) * slopes_eb_lo[2];
 
                 }  // end of making qmns
             }
@@ -891,14 +891,14 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
                                            vfrac(i,j,k+1) == 1. && vfrac(i,j,k+2) == 1.)
                 {
                     int order = 4;
-                    qpls = q(i,j,k,n) + 0.5 * (-1.0 - ccvel(i,j,k,2) * dtdz) *
+                    qpls = q(i,j,k,n) + Real(0.5) * (-Real(1.0) - ccvel(i,j,k,2) * dtdz) *
                         amrex_calc_zslope(i,j,k,n,order,q);
 
                 // We have enough cells to do 2nd order slopes with all values at cell centers
                 } else if (vfrac(i,j,k) == 1. && vfrac(i,j,k-1) == 1. && vfrac(i,j,k+1) == 1.) {
 
                     int order = 2;
-                    qpls = q(i,j,k,n) + 0.5 * (-1.0 - ccvel(i,j,k,2) * dtdz) *
+                    qpls = q(i,j,k,n) + Real(0.5) * (-Real(1.0) - ccvel(i,j,k,2) * dtdz) *
                         amrex_calc_zslope(i,j,k,n,order,q);
 
                 // We need to use LS slopes
@@ -907,7 +907,7 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
                    Real xf = fcz(i,j,k,0); // local (x,y) of centroid of z-face we are extrapolating to
                    Real yf = fcz(i,j,k,1);
 
-                   AMREX_D_TERM(Real delta_z = -0.5 - ccc(i,j,k,2);,
+                   AMREX_D_TERM(Real delta_z = -Real(0.5) - ccc(i,j,k,2);,
                                 Real delta_x =  xf  - ccc(i,j,k,0);,
                                 Real delta_y =  yf  - ccc(i,j,k,1););
 
@@ -926,7 +926,7 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
 
                    qpls = amrex::max(amrex::min(qpls, qcc_max), qcc_min);
 
-                   qpls -= 0.5 * dtdz * ccvel(i,j,k,2) * slopes_eb_hi[2];
+                   qpls -= Real(0.5) * dtdz * ccvel(i,j,k,2) * slopes_eb_hi[2];
 
                 }  // end of making qpls
 
@@ -939,14 +939,14 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
                                              vfrac(i,j,k  ) == 1. && vfrac(i,j,k+1) == 1.)
                 {
                     int order = 4;
-                    qmns = q(i,j,k-1,n) + 0.5 * ( 1.0 - ccvel(i,j,k-1,2) * dtdz) *
+                    qmns = q(i,j,k-1,n) + Real(0.5) * ( Real(1.0) - ccvel(i,j,k-1,2) * dtdz) *
                         amrex_calc_zslope(i,j,k-1,n,order,q);
 
                 // We have enough cells to do 2nd order slopes with all values at cell centers
                 } else if (vfrac(i,j,k-1) == 1. && vfrac(i,j,k-2) == 1. && vfrac(i,j,k  ) == 1.)
                 {
                     int order = 2;
-                    qmns = q(i,j,k-1,n) + 0.5 * ( 1.0 - ccvel(i,j,k-1,2) * dtdz) *
+                    qmns = q(i,j,k-1,n) + Real(0.5) * ( Real(1.0) - ccvel(i,j,k-1,2) * dtdz) *
                         amrex_calc_zslope(i,j,k-1,n,order,q);
 
                 // We need to use LS slopes
@@ -955,7 +955,7 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
                    Real xf = fcz(i,j,k,0); // local (x,y) of centroid of z-face we are extrapolating to
                    Real yf = fcz(i,j,k,1);
 
-                   AMREX_D_TERM(Real delta_z = 0.5 - ccc(i,j,k-1,2);,
+                   AMREX_D_TERM(Real delta_z = Real(0.5) - ccc(i,j,k-1,2);,
                                 Real delta_x = xf  - ccc(i,j,k-1,0);,
                                 Real delta_y = yf  - ccc(i,j,k-1,1););
 
@@ -974,7 +974,7 @@ EBPLM::PredictVelOnZFace (Box const& zebox,
 
                    qmns = amrex::max(amrex::min(qmns, qcc_max), qcc_min);
 
-                   qmns -= 0.5 * dtdz * ccvel(i,j,k-1,2) * slopes_eb_lo[2];
+                   qmns -= Real(0.5) * dtdz * ccvel(i,j,k-1,2) * slopes_eb_lo[2];
 
                 }  // end of making qmns
             }

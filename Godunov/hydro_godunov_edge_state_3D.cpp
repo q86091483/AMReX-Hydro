@@ -9,7 +9,6 @@
 #include <hydro_godunov_ppm.H>
 #include <hydro_godunov.H>
 #include <hydro_godunov_corner_couple.H>
-#include <hydro_godunov_K.H>
 #include <hydro_bcs_K.H>
 
 using namespace amrex;
@@ -28,9 +27,10 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
                            Geometry geom,
                            Real l_dt,
                            BCRec const* pbc, int const* iconserv,
-                           bool use_ppm,
-                           bool use_forces_in_trans,
-                           bool is_velocity)
+                           const bool use_ppm,
+                           const bool use_forces_in_trans,
+                           const bool is_velocity,
+                           const int limiter_type)
 {
     Box const& xbx = amrex::surroundingNodes(bx,0);
     Box const& ybx = amrex::surroundingNodes(bx,1);
@@ -38,8 +38,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
 
     Box const& bxg1 = amrex::grow(bx,1);
 
-    FArrayBox tmpfab(amrex::grow(bx,1),  (4*AMREX_SPACEDIM + 2)*ncomp);
-    Elixir tmpeli = tmpfab.elixir();
+    FArrayBox tmpfab(amrex::grow(bx,1),  (4*AMREX_SPACEDIM + 2)*ncomp,The_Async_Arena());
     Real* p   = tmpfab.dataPtr();
 
     Box xebox = Box(xbx).grow(1,1).grow(2,1);
@@ -90,16 +89,25 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
     // Use PPM to generate Im and Ip */
     if (use_ppm)
     {
-        amrex::ParallelFor(bxg1, ncomp,
-        [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
-        {
-            PPM::PredictStateOnXFace(i, j, k, n, l_dt, dx, Imx(i,j,k,n), Ipx(i,j,k,n),
-                                   q, umac, pbc[n], dlo.x, dhi.x);
-            PPM::PredictStateOnYFace(i, j, k, n, l_dt, dy, Imy(i,j,k,n), Ipy(i,j,k,n),
-                                   q, vmac, pbc[n], dlo.y, dhi.y);
-            PPM::PredictStateOnZFace(i, j, k, n, l_dt, dz, Imz(i,j,k,n), Ipz(i,j,k,n),
-                                   q, wmac, pbc[n], dlo.z, dhi.z);
-        });
+        if(limiter_type == PPM::VanLeer) {
+            auto limiter = PPM::vanleer();
+            PPM::PredictStateOnFaces(bxg1,AMREX_D_DECL(Imx,Imy,Imz),
+                                     AMREX_D_DECL(Ipx,Ipy,Ipz),
+                                     AMREX_D_DECL(umac,vmac,wmac),
+                                     q,geom,l_dt,pbc,ncomp,limiter);
+        } else if ( limiter_type == PPM::WENOZ) {
+            auto limiter = PPM::wenoz();
+            PPM::PredictStateOnFaces(bxg1,AMREX_D_DECL(Imx,Imy,Imz),
+                                     AMREX_D_DECL(Ipx,Ipy,Ipz),
+                                     AMREX_D_DECL(umac,vmac,wmac),
+                                     q,geom,l_dt,pbc,ncomp,limiter);
+        } else {
+            auto limiter = PPM::nolimiter();
+            PPM::PredictStateOnFaces(bxg1,AMREX_D_DECL(Imx,Imy,Imz),
+                                     AMREX_D_DECL(Ipx,Ipy,Ipz),
+                                     AMREX_D_DECL(umac,vmac,wmac),
+                                     q,geom,l_dt,pbc,ncomp,limiter);
+        }
     // Use PLM to generate Im and Ip */
     }
     else
@@ -144,7 +152,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
 
         auto bc = pbc[n];
 
-        GodunovTransBC::SetTransTermXBCs(i, j, k, n, q, lo, hi, bc.lo(0), bc.hi(0), dlo.x, dhi.x, is_velocity);
+        HydroBC::SetXEdgeBCs(i, j, k, n, q, lo, hi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, is_velocity);
         xlo(i,j,k,n) = lo;
         xhi(i,j,k,n) = hi;
         Real st = (uval) ? lo : hi;
@@ -167,7 +175,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
 
         auto bc = pbc[n];
 
-        GodunovTransBC::SetTransTermYBCs(i, j, k, n, q, lo, hi, bc.lo(1), bc.hi(1), dlo.y, dhi.y, is_velocity);
+        HydroBC::SetYEdgeBCs(i, j, k, n, q, lo, hi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, is_velocity);
 
         ylo(i,j,k,n) = lo;
         yhi(i,j,k,n) = hi;
@@ -190,7 +198,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
 
         auto bc = pbc[n];
 
-        GodunovTransBC::SetTransTermZBCs(i, j, k, n, q, lo, hi, bc.lo(2), bc.hi(2), dlo.z, dhi.z, is_velocity);
+        HydroBC::SetZEdgeBCs(i, j, k, n, q, lo, hi, bc.lo(2), dlo.z, bc.hi(2), dhi.z, is_velocity);
 
         zlo(i,j,k,n) = lo;
         zhi(i,j,k,n) = hi;
@@ -219,7 +227,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
                               q, divu, vmac, Imy);
 
         Real wad = wmac(i,j,k);
-        GodunovTransBC::SetTransTermZBCs(i, j, k, n, q, l_zylo, l_zyhi, bc.lo(2), bc.hi(2), dlo.z, dhi.z, is_velocity);
+        HydroBC::SetZEdgeBCs(i, j, k, n, q, l_zylo, l_zyhi, bc.lo(2), dlo.z, bc.hi(2), dhi.z, is_velocity);
 
         Real st = (wad >= 0.) ? l_zylo : l_zyhi;
         Real fu = (amrex::Math::abs(wad) < small_vel) ? 0.0 : 1.0;
@@ -236,7 +244,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
                               q, divu, wmac, Imz);
 
         Real vad = vmac(i,j,k);
-        GodunovTransBC::SetTransTermYBCs(i, j, k, n, q, l_yzlo, l_yzhi, bc.lo(1), bc.hi(1), dlo.y, dhi.y, is_velocity);
+        HydroBC::SetYEdgeBCs(i, j, k, n, q, l_yzlo, l_yzhi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, is_velocity);
 
         Real st = (vad >= 0.) ? l_yzlo : l_yzhi;
         Real fu = (amrex::Math::abs(vad) < small_vel) ? 0.0 : 1.0;
@@ -320,7 +328,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
                               q, divu, wmac, Imz);
 
         Real uad = umac(i,j,k);
-        GodunovTransBC::SetTransTermXBCs(i, j, k, n, q, l_xzlo, l_xzhi, bc.lo(0), bc.hi(0), dlo.x, dhi.x, is_velocity);
+        HydroBC::SetXEdgeBCs(i, j, k, n, q, l_xzlo, l_xzhi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, is_velocity);
 
         Real st = (uad >= 0.) ? l_xzlo : l_xzhi;
         Real fu = (amrex::Math::abs(uad) < small_vel) ? 0.0 : 1.0;
@@ -337,7 +345,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
                               q, divu, umac, Imx);
 
         Real wad = wmac(i,j,k);
-        GodunovTransBC::SetTransTermZBCs(i, j, k, n, q, l_zxlo, l_zxhi, bc.lo(2), bc.hi(2), dlo.z, dhi.z, is_velocity);
+        HydroBC::SetZEdgeBCs(i, j, k, n, q, l_zxlo, l_zxhi, bc.lo(2), dlo.z, bc.hi(2), dhi.z, is_velocity);
 
         Real st = (wad >= 0.) ? l_zxlo : l_zxhi;
         Real fu = (amrex::Math::abs(wad) < small_vel) ? 0.0 : 1.0;
@@ -419,7 +427,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
                               q, divu, vmac, Imy);
 
         Real uad = umac(i,j,k);
-        GodunovTransBC::SetTransTermXBCs(i, j, k, n, q, l_xylo, l_xyhi, bc.lo(0), bc.hi(0), dlo.x, dhi.x, is_velocity);
+        HydroBC::SetXEdgeBCs(i, j, k, n, q, l_xylo, l_xyhi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, is_velocity);
 
         Real st = (uad >= 0.) ? l_xylo : l_xyhi;
         Real fu = (amrex::Math::abs(uad) < small_vel) ? 0.0 : 1.0;
@@ -436,7 +444,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
                               q, divu, umac, Imx);
 
         Real vad = vmac(i,j,k);
-        GodunovTransBC::SetTransTermYBCs(i, j, k, n, q, l_yxlo, l_yxhi, bc.lo(1), bc.hi(1), dlo.y, dhi.y, is_velocity);
+        HydroBC::SetYEdgeBCs(i, j, k, n, q, l_yxlo, l_yxhi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, is_velocity);
 
         Real st = (vad >= 0.) ? l_yxlo : l_yxhi;
         Real fu = (amrex::Math::abs(vad) < small_vel) ? 0.0 : 1.0;

@@ -8,7 +8,6 @@
 #include <hydro_godunov_plm.H>
 #include <hydro_godunov_ppm.H>
 #include <hydro_godunov.H>
-#include <hydro_godunov_K.H>
 #include <hydro_bcs_K.H>
 
 
@@ -26,17 +25,17 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
                            Geometry geom,
                            Real l_dt,
                            BCRec const* pbc, int const* iconserv,
-                           bool use_ppm,
-                           bool use_forces_in_trans,
-                           bool is_velocity)
+                           const bool use_ppm,
+                           const bool use_forces_in_trans,
+                           const bool is_velocity,
+                           const int limiter_type)
 {
     Box const& xbx = amrex::surroundingNodes(bx,0);
     Box const& ybx = amrex::surroundingNodes(bx,1);
 
     Box const& bxg1 = amrex::grow(bx,1);
 
-    FArrayBox tmpfab(amrex::grow(bx,1),  (4*AMREX_SPACEDIM + 2)*ncomp);
-    Elixir tmpeli = tmpfab.elixir();
+    FArrayBox tmpfab(amrex::grow(bx,1),  (4*AMREX_SPACEDIM + 2)*ncomp,The_Async_Arena());
     Real* p   = tmpfab.dataPtr();
 
     Box xebox = Box(xbx).grow(1,1);
@@ -48,6 +47,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
     Real dtdx = l_dt/dx;
     Real dtdy = l_dt/dy;
 
+    const bool is_rz = geom.IsRZ();
     Box const& domain = geom.Domain();
     const auto dlo = amrex::lbound(domain);
     const auto dhi = amrex::ubound(domain);
@@ -76,14 +76,25 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
     // Use PPM to generate Im and Ip */
     if (use_ppm)
     {
-        amrex::ParallelFor(bxg1, ncomp,
-        [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
-        {
-            PPM::PredictStateOnXFace(i, j, k, n, l_dt, dx, Imx(i,j,k,n), Ipx(i,j,k,n),
-                                   q, umac, pbc[n], dlo.x, dhi.x);
-            PPM::PredictStateOnYFace(i, j, k, n, l_dt, dy, Imy(i,j,k,n), Ipy(i,j,k,n),
-                                   q, vmac, pbc[n], dlo.y, dhi.y);
-        });
+        if(limiter_type == PPM::VanLeer) {
+            auto limiter = PPM::vanleer();
+            PPM::PredictStateOnFaces(bxg1,AMREX_D_DECL(Imx,Imy,Imz),
+                                     AMREX_D_DECL(Ipx,Ipy,Ipz),
+                                     AMREX_D_DECL(umac,vmac,wmac),
+                                     q,geom,l_dt,pbc,ncomp,limiter);
+        } else if ( limiter_type == PPM::WENOZ) {
+            auto limiter = PPM::wenoz();
+            PPM::PredictStateOnFaces(bxg1,AMREX_D_DECL(Imx,Imy,Imz),
+                                     AMREX_D_DECL(Ipx,Ipy,Ipz),
+                                     AMREX_D_DECL(umac,vmac,wmac),
+                                     q,geom,l_dt,pbc,ncomp,limiter);
+        } else {
+            auto limiter = PPM::nolimiter();
+            PPM::PredictStateOnFaces(bxg1,AMREX_D_DECL(Imx,Imy,Imz),
+                                     AMREX_D_DECL(Ipx,Ipy,Ipz),
+                                     AMREX_D_DECL(umac,vmac,wmac),
+                                     q,geom,l_dt,pbc,ncomp,limiter);
+        }
     // Use PLM to generate Im and Ip */
     }
     else
@@ -105,12 +116,12 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
     }
 
 
+    // Don't need to save an intermediate upwinded edgestate in 2D like we do
+    // in 3D. Could combine these loops with making yz/xzlo, but if it's not
+    // broken ...
     amrex::ParallelFor(
     xebox, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
     {
-        Real uad = umac(i,j,k);
-        Real fux = (amrex::Math::abs(uad) < small_vel)? 0. : 1.;
-        bool uval = uad >= 0.;
         Real lo = Ipx(i-1,j,k,n);
         Real hi = Imx(i  ,j,k,n);
 
@@ -122,18 +133,12 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
 
         auto bc = pbc[n];
 
-        GodunovTransBC::SetTransTermXBCs(i, j, k, n, q, lo, hi, bc.lo(0), bc.hi(0), dlo.x, dhi.x, is_velocity);
+        HydroBC::SetXEdgeBCs(i, j, k, n, q, lo, hi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, is_velocity);
         xlo(i,j,k,n) = lo;
         xhi(i,j,k,n) = hi;
-        Real st = (uval) ? lo : hi;
-        Imx(i,j,k,n) = fux*st + (1. - fux)*0.5*(hi + lo);
-
     },
     yebox, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
     {
-        Real vad = vmac(i,j,k);
-        Real fuy = (amrex::Math::abs(vad) < small_vel)? 0. : 1.;
-        bool vval = vad >= 0.;
         Real lo = Ipy(i,j-1,k,n);
         Real hi = Imy(i,j  ,k,n);
 
@@ -145,16 +150,12 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
 
         auto bc = pbc[n];
 
-        GodunovTransBC::SetTransTermYBCs(i, j, k, n, q, lo, hi, bc.lo(1), bc.hi(1), dlo.y, dhi.y, is_velocity);
+        HydroBC::SetYEdgeBCs(i, j, k, n, q, lo, hi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, is_velocity);
 
         ylo(i,j,k,n) = lo;
         yhi(i,j,k,n) = hi;
-        Real st = (vval) ? lo : hi;
-        Imy(i,j,k,n) = fuy*st + (1. - fuy)*0.5*(hi + lo);
     }
     );
-
-    // We can reuse the space in Ipx, Ipy and Ipz.
 
     //
     // x-direction
@@ -171,7 +172,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
         l_yzlo = ylo(i,j,k,n);
         l_yzhi = yhi(i,j,k,n);
         Real vad = vmac(i,j,k);
-        GodunovTransBC::SetTransTermYBCs(i, j, k, n, q, l_yzlo, l_yzhi, bc.lo(1), bc.hi(1), dlo.y, dhi.y, is_velocity);
+        HydroBC::SetYEdgeBCs(i, j, k, n, q, l_yzlo, l_yzhi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, is_velocity);
 
         Real st = (vad >= 0.) ? l_yzlo : l_yzhi;
         Real fu = (amrex::Math::abs(vad) < small_vel) ? 0.0 : 1.0;
@@ -184,34 +185,39 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
     {
         Real stl, sth;
 
-    stl = xlo(i,j,k,n);
-    sth = xhi(i,j,k,n);
-    // To match EBGodunov
-    // Here we add  dt/2 (-q u_x - (v q)_y) to the term that is already
-    //     q + dx/2 q_x + dt/2 (-u q_x) to get
-    //     q + dx/2 q_x - dt/2 (u q_x  + q u_x + (v q)_y) which is equivalent to
-    // --> q + dx/2 q_x - dt/2 ( div (uvec q) )
-    Real quxl = (umac(i,j,k) - umac(i-1,j,k)) * q(i-1,j,k,n);
-    stl += ( - (0.5*dtdx) * quxl
-         - (0.5*dtdy) * (yzlo(i-1,j+1,k  ,n)*vmac(i-1,j+1,k  )
-                -yzlo(i-1,j  ,k  ,n)*vmac(i-1,j  ,k  )) );
+        stl = xlo(i,j,k,n);
+        sth = xhi(i,j,k,n);
+        // To match EBGodunov
+        // Here we add  dt/2 (-q u_x - (v q)_y) to the term that is already
+        //     q + dx/2 q_x + dt/2 (-u q_x) to get
+        //     q + dx/2 q_x - dt/2 (u q_x  + q u_x + (v q)_y) which is equivalent to
+        // --> q + dx/2 q_x - dt/2 ( div (uvec q) )
+        Real quxl = (umac(i,j,k) - umac(i-1,j,k)) * q(i-1,j,k,n);
+        stl += ( - (0.5*dtdx) * quxl
+                 - (0.5*dtdy) * (yzlo(i-1,j+1,k  ,n)*vmac(i-1,j+1,k  )
+                                -yzlo(i-1,j  ,k  ,n)*vmac(i-1,j  ,k  )) );
 
-    // Here we adjust for non-conservative by removing the q divu contribution to get
-    //     q + dx/2 q_x - dt/2 ( div (uvec q) - q divu ) which is equivalent to
-    // --> q + dx/2 q_x - dt/2 ( uvec dot grad q)
-    stl += (!iconserv[n])               ?  0.5*l_dt* q(i-1,j,k,n)*divu(i-1,j,k) : 0.;
+        // Here we adjust for non-conservative by removing the q divu contribution to get
+        //     q + dx/2 q_x - dt/2 ( div (uvec q) - q divu ) which is equivalent to
+        // --> q + dx/2 q_x - dt/2 ( uvec dot grad q)
+        stl += (!iconserv[n])               ?  0.5*l_dt* q(i-1,j,k,n)*divu(i-1,j,k) : 0.;
 
-    stl += (!use_forces_in_trans && fq) ? 0.5*l_dt*fq(i-1,j,k,n) : 0.;
+        stl += (!use_forces_in_trans && fq) ? 0.5*l_dt*fq(i-1,j,k,n) : 0.;
 
-    // High side
-    Real quxh = (umac(i+1,j,k) - umac(i,j,k)) * q(i,j,k,n);
-    sth += ( - (0.5*dtdx) * quxh
-         - (0.5*dtdy)*(yzlo(i,j+1,k,n)*vmac(i,j+1,k)
-                  -yzlo(i,j  ,k,n)*vmac(i,j  ,k)) );
+        // Here we add uq/r for RZ
+        stl += (is_rz) ? -0.25 * l_dt * q(i-1,j,k,n)*( umac(i,j,k) + umac(i-1,j,k) ) / ( dx*(amrex::Math::abs(Real(i)-0.5)) ) : 0.;
 
-    sth += (!iconserv[n])               ? 0.5*l_dt* q(i  ,j,k,n)*divu(i,j,k) : 0.;
+        // High side
+        Real quxh = (umac(i+1,j,k) - umac(i,j,k)) * q(i,j,k,n);
+        sth += ( - (0.5*dtdx) * quxh
+                 - (0.5*dtdy)*(yzlo(i,j+1,k,n)*vmac(i,j+1,k)
+                              -yzlo(i,j  ,k,n)*vmac(i,j  ,k)) );
 
-    sth += (!use_forces_in_trans && fq) ? 0.5*l_dt*fq(i  ,j,k,n) : 0.;
+        sth += (!iconserv[n])               ? 0.5*l_dt* q(i  ,j,k,n)*divu(i,j,k) : 0.;
+
+        sth += (!use_forces_in_trans && fq) ? 0.5*l_dt*fq(i  ,j,k,n) : 0.;
+
+        sth += (is_rz) ? -0.25 * l_dt * q(i,j,k,n)*( umac(i,j,k) + umac(i+1,j,k) ) / ( dx*(amrex::Math::abs(Real(i)+0.5)) ) : 0.;
 
 
         auto bc = pbc[n];
@@ -225,7 +231,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
         if ( (i==dhi.x+1) && (bc.hi(0) == BCType::foextrap || bc.hi(0) == BCType::hoextrap) )
         {
             if ( umac(i,j,k) <= 0. && n==XVEL && is_velocity ) stl = amrex::max(stl,0.0_rt);
-             sth = stl;
+            sth = stl;
         }
 
         Real temp = (umac(i,j,k) >= 0.) ? stl : sth;
@@ -249,7 +255,7 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
         l_xzhi = xhi(i,j,k,n);
 
         Real uad = umac(i,j,k);
-        GodunovTransBC::SetTransTermXBCs(i, j, k, n, q, l_xzlo, l_xzhi, bc.lo(0), bc.hi(0), dlo.x, dhi.x, is_velocity);
+        HydroBC::SetXEdgeBCs(i, j, k, n, q, l_xzlo, l_xzhi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, is_velocity);
 
         Real st = (uad >= 0.) ? l_xzlo : l_xzhi;
         Real fu = (amrex::Math::abs(uad) < small_vel) ? 0.0 : 1.0;
@@ -262,35 +268,40 @@ Godunov::ComputeEdgeState (Box const& bx, int ncomp,
     {
         Real stl, sth;
 
-    stl = ylo(i,j,k,n);
-    sth = yhi(i,j,k,n);
+        stl = ylo(i,j,k,n);
+        sth = yhi(i,j,k,n);
 
-    // To match EBGodunov
-    // Here we add  dt/2 (-q v_y - (u q)_x) to the term that is already
-    //     q + dy/2 q_y + dt/2 (-v q_y) to get
-    //     q + dy/2 q_y - dt/2 (v q_y  + q v_y + (u q)_x) which is equivalent to
-    // --> q + dy/2 q_y - dt/2 ( div (uvec q) )
-    Real qvyl = (vmac(i,j,k) - vmac(i,j-1,k)) * q(i,j-1,k,n);
-    stl += ( - (0.5*dtdy)*qvyl
-         - (0.5*dtdx)*(xzlo(i+1,j-1,k  ,n)*umac(i+1,j-1,k  )
-                  -xzlo(i  ,j-1,k  ,n)*umac(i  ,j-1,k  )) );
+        // To match EBGodunov
+        // Here we add  dt/2 (-q v_y - (u q)_x) to the term that is already
+        //     q + dy/2 q_y + dt/2 (-v q_y) to get
+        //     q + dy/2 q_y - dt/2 (v q_y  + q v_y + (u q)_x) which is equivalent to
+        // --> q + dy/2 q_y - dt/2 ( div (uvec q) )
+        Real qvyl = (vmac(i,j,k) - vmac(i,j-1,k)) * q(i,j-1,k,n);
+        stl += ( - (0.5*dtdy)*qvyl
+                 - (0.5*dtdx)*(xzlo(i+1,j-1,k  ,n)*umac(i+1,j-1,k  )
+                              -xzlo(i  ,j-1,k  ,n)*umac(i  ,j-1,k  )) );
 
-    // Here we adjust for non-conservative by removing the q divu contribution to get
-    //     q + dy/2 q_y - dt/2 ( div (uvec q) - q divu ) which is equivalent to
-    // --> q + dy/2 q_y - dt/2 ( uvec dot grad q)
-    stl += (!iconserv[n])               ? 0.5*l_dt* q(i,j-1,k,n)*divu(i,j-1,k) : 0.;
+        // Here we adjust for non-conservative by removing the q divu contribution to get
+        //     q + dy/2 q_y - dt/2 ( div (uvec q) - q divu ) which is equivalent to
+        // --> q + dy/2 q_y - dt/2 ( uvec dot grad q)
+        stl += (!iconserv[n])               ? 0.5*l_dt* q(i,j-1,k,n)*divu(i,j-1,k) : 0.;
 
-    stl += (!use_forces_in_trans && fq) ? 0.5*l_dt*fq(i,j-1,k,n) : 0.;
+        stl += (!use_forces_in_trans && fq) ? 0.5*l_dt*fq(i,j-1,k,n) : 0.;
 
-    // High side
-    Real qvyh = (vmac(i,j+1,k) - vmac(i,j,k)) * q(i,j,k,n);
-    sth += ( - (0.5*dtdy)*qvyh
-         - (0.5*dtdx)*(xzlo(i+1,j,k  ,n)*umac(i+1,j,k  )
-                  -xzlo(i  ,j,k  ,n)*umac(i  ,j,k  )) );
+        // Here we add uq/r for RZ
+        stl += (is_rz) ? -0.25 * l_dt * q(i,j-1,k,n)*( umac(i,j-1,k) + umac(i+1,j-1,k) ) / ( dx*(amrex::Math::abs(Real(i)+0.5)) ) : 0.;
 
-    sth += (!iconserv[n])               ? 0.5*l_dt* q(i,j,k,n)*divu(i,j,k) : 0.;
+        // High side
+        Real qvyh = (vmac(i,j+1,k) - vmac(i,j,k)) * q(i,j,k,n);
+        sth += ( - (0.5*dtdy)*qvyh
+                 - (0.5*dtdx)*(xzlo(i+1,j,k  ,n)*umac(i+1,j,k  )
+                              -xzlo(i  ,j,k  ,n)*umac(i  ,j,k  )) );
 
-    sth += (!use_forces_in_trans && fq) ? 0.5*l_dt*fq(i,j,k,n) : 0.;
+        sth += (!iconserv[n])               ? 0.5*l_dt* q(i,j,k,n)*divu(i,j,k) : 0.;
+
+        sth += (!use_forces_in_trans && fq) ? 0.5*l_dt*fq(i,j,k,n) : 0.;
+
+        sth += (is_rz) ? -0.25 * l_dt * q(i,j,k,n)*( umac(i,j  ,k) + umac(i+1,j  ,k) ) / ( dx*(amrex::Math::abs(Real(i)+0.5)) ) : 0.;
 
 
         auto bc = pbc[n];

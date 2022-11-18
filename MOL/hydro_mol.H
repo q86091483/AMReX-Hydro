@@ -33,92 +33,28 @@
 
 namespace MOL {
 
-
-
 /**
  *
- *  \brief Example documentation
+ * \brief Compute upwinded face-centered states by extrapolating cell-centered values in SPACE ONLY.
+ * \param [in]     a_bx        Current grid patch
+ * \param [in,out] xedge       Array4 containing x-edges, starting at component of interest
+ * \param [in,out] yedge       Array4 containing y-edges, starting at component of interest
+ * \param [in,out] zedge       Array4 containing z-edges, starting at component of interest
+ * \param [in]     q           Array4 of state, starting at component of interest
+ * \param [in]     ncomp       Number of components to work on
+ * \param [in]     umac        x-Face velocities.
+ * \param [in]     vmac        y-Face velocities.
+ * \param [in]     wmac        z-Face velocities.
+ * \param [in]     domain      Problem domain.
+ * \param [in]     bcs         Vector of boundary conditions
+ * \param [in]     d_bcrec_ptr BCRec
+ * \param [in]     is_velocity Indicates a component is velocity so boundary conditions can
+ *                             be properly addressed. The header hydro_constants.H
+ *                             defines the component positon by [XYZ]VEL macro.
  *
- *  \param aofs My favorite variable.
- *  \param aofs_comp My second variable.
- *
- *  Doxygen demo docs.
- *
- */
-
-
-void ComputeAofs ( amrex::MultiFab& aofs, int aofs_comp, int ncomp,
-                   amrex::MultiFab const& state, int state_comp,
-                   AMREX_D_DECL( amrex::MultiFab const& umac,
-                                 amrex::MultiFab const& vmac,
-                                 amrex::MultiFab const& wmac),
-                   AMREX_D_DECL( amrex::MultiFab& xedge,
-                                 amrex::MultiFab& yedge,
-                                 amrex::MultiFab& zedge),
-                   int  edge_comp,
-                   bool known_edgestate,
-                   AMREX_D_DECL( amrex::MultiFab& xfluxes,
-                                 amrex::MultiFab& yfluxes,
-                                 amrex::MultiFab& zfluxes),
-                   int fluxes_comp,
-                   amrex::MultiFab const& divu,
-                   amrex::Vector<amrex::BCRec> const& bcs,
-                   amrex::BCRec  const* d_bcrec_ptr,
-                   amrex::Gpu::DeviceVector<int>& iconserv,
-                   amrex::Geometry const& geom,
-                   bool is_velocity);
-
-/**
- *  <A ID="ComputeSyncAofs"></A>
- *
- *  \brief Example documentation
- *
- *  \param[in] aofs This is an `in` variable.
- *  \param[in,out] aofs_comp This is an `in,out` variable.
- *
- *  This is an example of the documentation capabilities.
- *
- *  The html above
- *  creates an anchor that can be used to link directly to the documentation
- *  for this function. Navigating to
- *
- *      https://amrex-codes.github.io/amrex-hydro/Doxygen/html/namespaceMOL.html#ComputeSyncAofs
- *
- *  will bring you to the documentation for this function specifically.
- *
- *  The tag below allows for cross referencing of other functions in Doxygen.
- *
- *  \ref ExtrapVelToFaces
- *
- *
- */
-
-
-void ComputeSyncAofs ( amrex::MultiFab& aofs, int aofs_comp, int ncomp,
-                       amrex::MultiFab const& state, int state_comp,
-                       AMREX_D_DECL( amrex::MultiFab const& umac,
-                                     amrex::MultiFab const& vmac,
-                                     amrex::MultiFab const& wmac),
-                       AMREX_D_DECL( amrex::MultiFab const& ucorr,
-                                     amrex::MultiFab const& vcorr,
-                                     amrex::MultiFab const& wcorr),
-                       AMREX_D_DECL( amrex::MultiFab& xedge,
-                                     amrex::MultiFab& yedge,
-                                     amrex::MultiFab& zedge),
-                       int  edge_comp,
-                       bool known_edgestate,
-                       AMREX_D_DECL( amrex::MultiFab& xfluxes,
-                                     amrex::MultiFab& yfluxes,
-                                     amrex::MultiFab& zfluxes),
-                       int fluxes_comp,
-                       amrex::Vector<amrex::BCRec> const& bcs,
-                       amrex::BCRec  const* d_bcrec_ptr,
-                       amrex::Geometry const& geom,
-                       bool is_velocity);
-
-/**
- *  \brief ComputeEdgeState description.
- *
+ * Compute upwinded FC states by extrapolating CC values in SPACE ONLY.
+ * This is NOT a Godunov type extrapolation: there is NO dependence on time!
+ * The resulting FC states are computed at the CENTROID of the face.
  *
  */
 

@@ -10,62 +10,10 @@
 
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_BCRec.H>
+#include <hydro_godunov_ppm.H>
 
 namespace Godunov {
 
-
-void ComputeAofs ( amrex::MultiFab& aofs, const int aofs_comp, const int ncomp,
-                   amrex::MultiFab const& state, const int state_comp,
-                   AMREX_D_DECL( amrex::MultiFab const& umac,
-                                 amrex::MultiFab const& vmac,
-                                 amrex::MultiFab const& wmac),
-                   AMREX_D_DECL( amrex::MultiFab& xedge,
-                                 amrex::MultiFab& yedge,
-                                 amrex::MultiFab& zedge),
-                   const int  edge_comp,
-                   const bool known_edgestate,
-                   AMREX_D_DECL( amrex::MultiFab& xfluxes,
-                                 amrex::MultiFab& yfluxes,
-                                 amrex::MultiFab& zfluxes),
-                   int fluxes_comp,
-                   amrex::MultiFab const& fq,
-                   const int fq_comp,
-                   amrex::MultiFab const& divu,
-                   amrex::BCRec const* d_bc,
-                   amrex::Geometry const& geom,
-                   amrex::Vector<int>& iconserv,
-                   const amrex::Real dt,
-                   const bool use_ppm,
-                   const bool use_forces_in_trans,
-                   const bool is_velocity  );
-
-void ComputeSyncAofs ( amrex::MultiFab& aofs, const int aofs_comp, const int ncomp,
-                       amrex::MultiFab const& state, const int state_comp,
-                       AMREX_D_DECL( amrex::MultiFab const& umac,
-                                     amrex::MultiFab const& vmac,
-                                     amrex::MultiFab const& wmac),
-                       AMREX_D_DECL( amrex::MultiFab const& ucorr,
-                                     amrex::MultiFab const& vcorr,
-                                     amrex::MultiFab const& wcorr),
-                       AMREX_D_DECL( amrex::MultiFab& xedge,
-                                     amrex::MultiFab& yedge,
-                                     amrex::MultiFab& zedge),
-                       const int  edge_comp,
-                       const bool known_edgestate,
-                       AMREX_D_DECL( amrex::MultiFab& xfluxes,
-                                     amrex::MultiFab& yfluxes,
-                                     amrex::MultiFab& zfluxes),
-                       int fluxes_comp,
-                       amrex::MultiFab const& fq,
-                       const int fq_comp,
-                       amrex::MultiFab const& divu,
-                       amrex::BCRec const* d_bc,
-                       amrex::Geometry const& geom,
-                       amrex::Gpu::DeviceVector<int>& iconserv,
-                       const amrex::Real dt,
-                       const bool use_ppm,
-                       const bool use_forces_in_trans,
-                       const bool is_velocity  );
 
 void ExtrapVelToFaces ( amrex::MultiFab const& a_vel,
                         amrex::MultiFab const& a_forces,
@@ -75,7 +23,8 @@ void ExtrapVelToFaces ( amrex::MultiFab const& a_vel,
                         const amrex::Vector<amrex::BCRec> & h_bcrec,
                         const               amrex::BCRec  * d_bcrec,
                         const amrex::Geometry& geom, amrex::Real l_dt,
-                        bool use_ppm, bool use_forces_in_trans);
+                        bool use_ppm, bool use_forces_in_trans,
+                        const int limiter_type = PPM::VanLeer);
 
 void ComputeAdvectiveVel (AMREX_D_DECL(amrex::Box const& xbx,
                                        amrex::Box const& ybx,
@@ -135,8 +84,9 @@ void ComputeEdgeState ( amrex::Box const& bx, int ncomp,
                         amrex::Real dt,
                         amrex::BCRec const* d_bcrec,
                         int const* iconserv,
-                        const bool use_ppm, bool is_velocity,
-                        const bool use_forces_in_trans);
+                        const bool use_ppm, const bool use_forces_in_trans,
+                        const bool is_velocity,
+                        const int limiter_type = PPM::VanLeer);
 
 }
 

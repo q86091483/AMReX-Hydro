@@ -8,7 +8,6 @@
 #include <hydro_godunov_ppm.H>
 #include <hydro_godunov_plm.H>
 #include <hydro_godunov.H>
-#include <hydro_godunov_K.H>
 #include <hydro_bcs_K.H>
 
 using namespace amrex;
@@ -19,13 +18,13 @@ Godunov::ExtrapVelToFaces ( MultiFab const& a_vel,
                             MultiFab& a_umac,
                             MultiFab& a_vmac,
                             const Vector<BCRec> & h_bcrec,
-                const        BCRec  * d_bcrec,
+                            const        BCRec  * d_bcrec,
                             const Geometry& geom, Real l_dt,
-                            bool use_ppm, bool use_forces_in_trans)
+                            const bool use_ppm, const bool use_forces_in_trans,
+                            const int limiter_type)
 {
     Box const& domain = geom.Domain();
     const Real* dx    = geom.CellSize();
-
     const int ncomp = AMREX_SPACEDIM;
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -65,10 +64,25 @@ Godunov::ExtrapVelToFaces ( MultiFab const& a_vel,
 
             if (use_ppm)
             {
-                PPM::PredictVelOnFaces( bxg1,
-                                        Imx, Imy, Ipx, Ipy,
-                                        vel, vel,
-                                        geom, l_dt, d_bcrec);
+                if(limiter_type == PPM::VanLeer) {
+                    auto limiter = PPM::vanleer();
+                    PPM::PredictVelOnFaces( bxg1,
+                                            Imx, Imy, Ipx, Ipy,
+                                            vel, vel,
+                                            geom, l_dt, d_bcrec, limiter);
+                } else if (limiter_type == PPM::WENOZ) {
+                    auto limiter = PPM::wenoz();
+                    PPM::PredictVelOnFaces( bxg1,
+                                            Imx, Imy, Ipx, Ipy,
+                                            vel, vel,
+                                            geom, l_dt, d_bcrec, limiter);
+                } else {
+                    auto limiter = PPM::nolimiter();
+                    PPM::PredictVelOnFaces( bxg1,
+                                            Imx, Imy, Ipx, Ipy,
+                                            vel, vel,
+                                            geom, l_dt, d_bcrec, limiter);
+                }
             }
             else
             {
@@ -129,7 +143,7 @@ Godunov::ComputeAdvectiveVel ( Box const& xbx,
         }
 
         auto bc = pbc[n];
-        GodunovTransBC::SetTransTermXBCs(i, j, k, n, vel, lo, hi, bc.lo(0), bc.hi(0), dlo.x, dhi.x, true);
+        HydroBC::SetXEdgeBCs(i, j, k, n, vel, lo, hi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
 
         Real st = ( (lo+hi) >= 0.) ? lo : hi;
         bool ltm = ( (lo <= 0. && hi >= 0.) || (amrex::Math::abs(lo+hi) < small_vel) );
@@ -150,7 +164,7 @@ Godunov::ComputeAdvectiveVel ( Box const& xbx,
         }
 
         auto bc = pbc[n];
-        GodunovTransBC::SetTransTermYBCs(i, j, k, n, vel, lo, hi, bc.lo(1), bc.hi(1), dlo.y, dhi.y, true);
+        HydroBC::SetYEdgeBCs(i, j, k, n, vel, lo, hi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
 
         Real st = ( (lo+hi) >= 0.) ? lo : hi;
         bool ltm = ( (lo <= 0. && hi >= 0.) || (amrex::Math::abs(lo+hi) < small_vel) );
@@ -199,6 +213,10 @@ Godunov::ExtrapVelToFacesOnBox (Box const& bx, int ncomp,
     Array4<Real> yhi = makeArray4(p, yebox, ncomp);
     p += yhi.size();
 
+    // Don't need to save an intermediate upwinded edgestate in 2D like we do
+    // in 3D. Could potentially combine these loops with making yz/xzlo, but
+    // then would need to rework scratch, because we can't reuse the space in
+    // Ipy in that case...
     amrex::ParallelFor(
     xebox, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
     {
@@ -211,17 +229,11 @@ Godunov::ExtrapVelToFacesOnBox (Box const& bx, int ncomp,
             hi += 0.5*l_dt*f(i  ,j,k,n);
         }
 
-        Real uad = u_ad(i,j,k);
         auto bc = pbc[n];
-
-        GodunovTransBC::SetTransTermXBCs(i, j, k, n, q, lo, hi, bc.lo(0), bc.hi(0), dlo.x, dhi.x, true);
+        HydroBC::SetXEdgeBCs(i, j, k, n, q, lo, hi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
 
         xlo(i,j,k,n) = lo;
         xhi(i,j,k,n) = hi;
-
-        Real st = (uad >= 0.) ? lo : hi;
-        Real fu = (amrex::Math::abs(uad) < small_vel) ? 0.0 : 1.0;
-        Imx(i, j, k, n) = fu*st + (1.0 - fu) *0.5 * (hi + lo); // store xedge
     },
     yebox, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
     {
@@ -234,24 +246,13 @@ Godunov::ExtrapVelToFacesOnBox (Box const& bx, int ncomp,
             hi += 0.5*l_dt*f(i,j  ,k,n);
         }
 
-        Real vad = v_ad(i,j,k);
         auto bc = pbc[n];
-
-        GodunovTransBC::SetTransTermYBCs(i, j, k, n, q, lo, hi, bc.lo(1), bc.hi(1), dlo.y, dhi.y, true);
+        HydroBC::SetYEdgeBCs(i, j, k, n, q, lo, hi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
 
         ylo(i,j,k,n) = lo;
         yhi(i,j,k,n) = hi;
-
-        Real st = (vad >= 0.) ? lo : hi;
-        Real fu = (amrex::Math::abs(vad) < small_vel) ? 0.0 : 1.0;
-        Imy(i, j, k, n) = fu*st + (1.0 - fu)*0.5*(hi + lo); // store yedge
     }
     );
-
-    Array4<Real> divu = makeArray4(Ipx.dataPtr(), grow(bx,1), 1);
-    amrex::ParallelFor(Box(divu), [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
-        divu(i,j,k) = 0.0;
-    });
 
     //
     // X-Flux
@@ -270,7 +271,7 @@ Godunov::ExtrapVelToFacesOnBox (Box const& bx, int ncomp,
         l_yzhi = yhi(i,j,k,n);
 
         Real vad = v_ad(i,j,k);
-        GodunovTransBC::SetTransTermYBCs(i, j, k, n, q, l_yzlo, l_yzhi, bc.lo(1), bc.hi(1), dlo.y, dhi.y, true);
+        HydroBC::SetYEdgeBCs(i, j, k, n, q, l_yzlo, l_yzhi, bc.lo(1), dlo.y, bc.hi(1), dhi.y, true);
 
         Real st = (vad >= 0.) ? l_yzlo : l_yzhi;
         Real fu = (amrex::Math::abs(vad) < small_vel) ? 0.0 : 1.0;
@@ -326,7 +327,7 @@ Godunov::ExtrapVelToFacesOnBox (Box const& bx, int ncomp,
         l_xzhi = xhi(i,j,k,n);
 
         Real uad = u_ad(i,j,k);
-        GodunovTransBC::SetTransTermXBCs(i, j, k, n, q, l_xzlo, l_xzhi, bc.lo(0), bc.hi(0), dlo.x, dhi.x, true);
+        HydroBC::SetXEdgeBCs(i, j, k, n, q, l_xzlo, l_xzhi, bc.lo(0), dlo.x, bc.hi(0), dhi.x, true);
 
 
         Real st = (uad >= 0.) ? l_xzlo : l_xzhi;
